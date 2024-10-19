@@ -1,5 +1,6 @@
 # ignore local virtual environment
 venv/
+# ignore cached filed
 __pycache__/
-test.py
-intro_ball.gif
+# ignore test stuff
+test_stuff/

@@ -1,15 +1,15 @@
 import pygame
 from mirror import Mirror
+from table import Table
 
 def main():
     # pygame setup
     pygame.init()
+    pygame.display.set_caption("Prisma")
     screen = pygame.display.set_mode((1280, 720))
     clock = pygame.time.Clock()
     running  = True
     dt = 0
-
-    player_pos = pygame.Vector2(screen.get_width() / 2, screen.get_height() / 2)
 
     while running:
         # poll for events
@@ -26,6 +26,8 @@ def main():
         mirror_2 = Mirror(screen.get_width() / 2 + 50, screen.get_height() / 2 + 50, 100, 180)
         mirror.draw(screen)
         mirror_2.draw(screen)
+        table = Table(screen)
+        table.draw()
 
         # flip() display to show the work done on the screen
         pygame.display.flip()

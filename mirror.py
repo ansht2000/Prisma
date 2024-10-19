@@ -17,7 +17,7 @@ class Mirror(pygame.sprite.Sprite):
         start_y = self.pos_y + (self.length / 2) * math.sin(radians)
         start_pos = pygame.Vector2(start_x, start_y)
         end_pos = pygame.Vector2(start_x + self.length * math.cos(radians), start_y - self.length * math.sin(radians))
-        pygame.draw.line(screen, "white", start_pos, end_pos)
+        return pygame.draw.line(screen, "white", start_pos, end_pos)
 
     
 
