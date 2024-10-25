@@ -1,19 +1,26 @@
 import pygame
 from render_utils import *
 from mirror import Mirror
+from constants import *
 
-# this class represents a table of available objects to choose from
 class Table:
     def __init__(self, screen: pygame.Surface):
         self.screen = screen
         self.height = screen.get_height()
-        # sets the table to take up 1/6 of the screen
         self.width = screen.get_width() * 5/6
-        # dictionary of entries in the table and their corresponding rects
+        # Pre-compute frequently used values
+        self.screen_width = screen.get_width()
+        self.center_x = (self.width + self.screen_width) // 2
         self.entry_rects = {}
-        # list of marking rects in the table
         self.marking_rects = []
-
+        # Initialize entries and positions
+        self.entries = [("mirror", Mirror, OBJECT_PADDING)]
+        self.rect = pygame.Rect(
+            self.width, 0, 
+            self.screen_width - self.width, 
+            self.height
+        )
+        
     def draw(self):
         self._draw_table_side()
         self._draw_table_title()
@@ -21,46 +28,73 @@ class Table:
         self._draw_table_objects_and_names()
         
     def _draw_table_side(self):
-        table_border_start = pygame.Vector2(self.width, 0)
-        table_border_end = pygame.Vector2(self.width, self.height)
-        pygame.draw.line(self.screen, "white", table_border_start, table_border_end)
+        pygame.draw.line(
+            self.screen, "white", 
+            (self.width, 0), 
+            (self.width, self.height)
+        )
 
     def _draw_table_title(self):
-        # using a magic number to set the distance of the title away from the top of the screen
-        title_height = self.screen.get_rect().top + 30
-        title_center = (self.width + self.screen.get_width()) // 2
-        font = pygame.font.SysFont("Arial", 36)
-        title_text, title_rect = render_text(font, "Objects", (255, 255, 255), (title_center, title_height))
+        title_y = self.screen.get_rect().top + PADDING_TOP
+        font = pygame.font.SysFont("Arial", TITLE_FONT_SIZE)
+        title_text, title_rect = render_text(
+            font, "Objects", (255, 255, 255), 
+            (self.center_x, title_y)
+        )
         self.entry_rects["title"] = title_rect
         self.screen.blit(title_text, title_rect)
 
     def _draw_table_markings(self):
-        double_marking_top_height = self.entry_rects["title"].bottom + 10
-        double_marking_bottom_height = double_marking_top_height + 5
-        double_marking_top_start = pygame.Vector2(self.width, double_marking_top_height)
-        double_marking_top_end = pygame.Vector2(self.screen.get_width(), double_marking_top_height)
-        double_marking_bottom_start = pygame.Vector2(self.width, double_marking_bottom_height)
-        double_marking_bottom_end = pygame.Vector2(self.screen.get_width(), double_marking_bottom_height)
-        pygame.draw.line(self.screen, "white", double_marking_top_start, double_marking_top_end)
-        bottom_marking_rect = pygame.draw.line(self.screen, "white", double_marking_bottom_start, double_marking_bottom_end)
-        self.marking_rects.append(bottom_marking_rect)
+        marking_top_y = self.entry_rects["title"].bottom + MARKING_OFFSET
+        marking_bottom_y = marking_top_y + 5
+        for y in [marking_top_y, marking_bottom_y]:
+            marking_rect = pygame.draw.line(
+                self.screen, "white", 
+                (self.width, y), 
+                (self.screen_width, y)
+            )
+            self.marking_rects.append(marking_rect)
 
     def _draw_table_objects_and_names(self):
-        # draw the mirror object as the first entry in the table
-        mirror_x = (self.width + self.screen.get_width()) // 2
-        mirror_y = self.marking_rects[0].bottom + 60
-        mirror = Mirror(mirror_x, mirror_y, 100)
-        mirror_rect = mirror.draw(self.screen)
-        font = pygame.font.SysFont("Arial", 24)
-        mirror_text, mirror_text_rect = render_text(font, "Mirror", (255, 255, 255), (mirror_x, mirror_y + 75))
-        # convert the mirror rect and mirror text rect into one rect
-        mirror_rect = mirror_rect.union(mirror_text_rect)
-        self.screen.blit(mirror_text, mirror_text_rect)
-        mirror_bottom_line_start = pygame.Vector2(self.width, mirror_rect.bottom + 20)
-        mirror_bottom_line_end = pygame.Vector2(self.screen.get_width(), mirror_rect.bottom + 20)
-        mirror_bottom_line_rect = pygame.draw.line(self.screen, "white", mirror_bottom_line_start, mirror_bottom_line_end)
-        mirror_rect = mirror_rect.union(mirror_bottom_line_rect)
-        self.entry_rects["mirror"] = mirror_rect
+        # Iterate through each entry and draw it
+        for name, obj_class, padding in self.entries:
+            obj_y = self.marking_rects[-1].bottom + padding
+            obj = obj_class(self.center_x, obj_y, self.screen, 100)
+            obj_rect = obj.draw()
+
+            font = pygame.font.SysFont("Arial", OBJECT_FONT_SIZE)
+            obj_text, obj_text_rect = render_text(
+                font, name, (255, 255, 255), 
+                (self.center_x, obj_y + 75)
+            )
+            self.screen.blit(obj_text, obj_text_rect)
+
+            # Merge the object's rects for easier handling
+            combined_rect = obj_rect.union(obj_text_rect)
+            bottom_line_start = pygame.Vector2(self.width, combined_rect.bottom + 20)
+            bottom_line_end = pygame.Vector2(self.screen_width, combined_rect.bottom + 20)
+            bottom_line_rect = pygame.draw.line(
+                self.screen, "white", 
+                bottom_line_start, bottom_line_end
+            )
+            combined_rect = combined_rect.union(bottom_line_rect)
+
+            # Store the entry rect
+            self.entry_rects[name] = combined_rect
+
+    def resize(self, event):
+        self.screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
+        self.height = self.screen.get_height()
+        self.width = self.screen.get_width() * 5/6
+        # Pre-compute frequently used values
+        self.screen_width = self.screen.get_width()
+        self.center_x = (self.width + self.screen_width) // 2
+        self.rect = pygame.Rect(
+            self.width, 0,
+            self.screen_width - self.width,
+            self.height
+        )
+
         
 
 
