@@ -1,9 +1,10 @@
 import pygame
 import math
+import time
 
 class Mirror(pygame.sprite.Sprite):
-    def __init__(self, pos_x, pos_y, screen, length=10, orientation=45):
-        if hasattr(self, "containers"):
+    def __init__(self, pos_x, pos_y, screen, length=100, orientation=45, add_to_groups = True):
+        if add_to_groups and hasattr(self, "containers"):
             super().__init__(self.containers)
         else:
             super().__init__()

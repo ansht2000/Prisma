@@ -1,71 +1,58 @@
 import pygame
 from mirror import Mirror
 from table import Table
-from constants import *
+from laser import Laser
 
 def main():
     # pygame setup
     pygame.init()
     pygame.display.set_caption("Prisma")
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    screen = pygame.display.set_mode((1280, 720), pygame.RESIZABLE)
     clock = pygame.time.Clock()
     running = True
-    dt = 0
 
     updatable = pygame.sprite.Group()
     drawable = pygame.sprite.Group()
-    Mirror.containers = (updatable, drawable)
-
-    # Initialize table and mirror objects
+    mirrors = pygame.sprite.Group()
+    Mirror.containers = (updatable, drawable, mirrors)
     table = Table(screen)
-    dragging_entry = False  # Track dragging from table
-    dragging_mirror = False  # Track dragging of mirrors
-    temp_mirror = None  # Temporary mirror during drag
+    
+    selected_mirror = None  # The currently selected mirror
+    dragging = False        # Whether dragging is active
 
     while running:
-        # Poll for events in the main loop
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                # Check if clicking on the mirror entry in the table
-                if table.entry_rects["mirror"].collidepoint(event.pos):
-                    dragging_entry = True  # Start dragging from table
-                    temp_mirror = Mirror(event.pos[0], event.pos[1], screen, MIRROR_DEFAULT_SIZE)
+                # Check if the click is on the mirror in the table
+                mirror_rect_in_table = table.entry_rects.get("mirror")
+                if mirror_rect_in_table and mirror_rect_in_table.collidepoint(event.pos):
+                    # Create a new mirror object at the mouse position
+                    mouse_x, mouse_y = event.pos
+                    new_mirror = Mirror(mouse_x, mouse_y, screen)
+                    selected_mirror = new_mirror
+                    dragging = True
                 else:
-                    # Check if clicking on an existing mirror
-                    for mirror in drawable:
+                    # Check if any mirror is clicked in the main area
+                    for mirror in mirrors:
                         if mirror.rect.collidepoint(event.pos):
-                            dragging_mirror = True
-                            temp_mirror = mirror
+                            selected_mirror = mirror
+                            dragging = True
                             break
-
             elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-                # Release the dragging state
-                if dragging_entry and temp_mirror:
-                    # Add the temporary mirror to the groups
-                    drawable.add(temp_mirror)
-                    updatable.add(temp_mirror)
-                    temp_mirror = None
-                    dragging_entry = False 
+                dragging = False
+                selected_mirror = None
 
-                if dragging_mirror:
-                    dragging_mirror = False
-                    temp_mirror = None
-
-            if event.type == pygame.VIDEORESIZE:
-                table.resize(event)
-
-        # Update the position of the dragging mirror or temporary mirror
-        if dragging_entry or dragging_mirror:
+        # Update the position of the selected mirror during dragging
+        if dragging and selected_mirror:
             mouse_x, mouse_y = pygame.mouse.get_pos()
-            if temp_mirror:
-                temp_mirror.set_position(mouse_x, mouse_y)
+            selected_mirror.set_position(mouse_x, mouse_y)
 
         # Fill the screen with a color to wipe away anything from the last frame
         screen.fill("black")
 
-        # Render game here
+        # Draw the table and other elements
         table.draw()
         for obj in drawable:
             obj.draw()
@@ -73,11 +60,8 @@ def main():
         for obj in updatable:
             obj.update(table.rect)
 
-        # Flip display to show the work done on the screen
         pygame.display.flip()
-
-        # Limits the FPS to 60
-        dt = clock.tick(60) / 1000
+        clock.tick(60)
 
     pygame.quit()
 

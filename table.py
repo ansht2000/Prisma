@@ -59,7 +59,7 @@ class Table:
         # Iterate through each entry and draw it
         for name, obj_class, padding in self.entries:
             obj_y = self.marking_rects[-1].bottom + padding
-            obj = obj_class(self.center_x, obj_y, self.screen, 100)
+            obj = obj_class(self.center_x, obj_y, self.screen, 100, 45, False)
             obj_rect = obj.draw()
 
             font = pygame.font.SysFont("Arial", OBJECT_FONT_SIZE)
