@@ -1,6 +1,5 @@
 import pygame
 import math
-import time
 
 class Mirror(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y, screen, length=100, orientation=45, add_to_groups = True):

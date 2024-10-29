@@ -1,6 +1,7 @@
 import pygame
 from render_utils import *
 from mirror import Mirror
+from laser import Laser
 from constants import *
 
 class Table:
@@ -14,7 +15,7 @@ class Table:
         self.entry_rects = {}
         self.marking_rects = []
         # Initialize entries and positions
-        self.entries = [("mirror", Mirror, OBJECT_PADDING)]
+        self.entries = [("mirror", Mirror, OBJECT_PADDING), ("laser", Laser, OBJECT_PADDING)]
         self.rect = pygame.Rect(
             self.width, 0, 
             self.screen_width - self.width, 
@@ -59,7 +60,7 @@ class Table:
         # Iterate through each entry and draw it
         for name, obj_class, padding in self.entries:
             obj_y = self.marking_rects[-1].bottom + padding
-            obj = obj_class(self.center_x, obj_y, self.screen, 100, 45, False)
+            obj = obj_class(self.center_x, obj_y, self.screen, add_to_groups=False)
             obj_rect = obj.draw()
 
             font = pygame.font.SysFont("Arial", OBJECT_FONT_SIZE)
@@ -81,6 +82,7 @@ class Table:
 
             # Store the entry rect
             self.entry_rects[name] = combined_rect
+            self.marking_rects.append(combined_rect)
 
     def resize(self, event):
         self.screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
