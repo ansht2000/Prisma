@@ -1,5 +1,6 @@
 import pygame
 import math
+from constants import ROTATION_SPEED
 
 class Mirror(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y, screen, length=100, orientation=45, add_to_groups = True):
@@ -30,7 +31,7 @@ class Mirror(pygame.sprite.Sprite):
         self.end_pos = end_pos
 
         # Create a larger hitbox around the line
-        padding = 10  # Padding around the line to create a larger hitbox
+        padding = 15  # Padding around the line to create a larger hitbox
         self.rect = pygame.Rect(
             min(start_x, end_pos.x) - padding, 
             min(start_y, end_pos.y) - padding, 
@@ -40,14 +41,29 @@ class Mirror(pygame.sprite.Sprite):
 
         # Draw the line and the hitbox for debugging
         pygame.draw.line(self.screen, "white", start_pos, end_pos)
+        # pygame.draw.rect(self.screen, "white", self.rect)
         return self.rect
 
     def set_position(self, x, y):
         self.pos_x = x
         self.pos_y = y
 
-    def update(self, table_rect):
+    def check_delete(self, table_rect):
         if self.rect.colliderect(table_rect) and not pygame.mouse.get_pressed()[0]:
             self.kill()
+
+    def rotate(self, dt):
+        self.orientation += ROTATION_SPEED * dt
+        self.orientation %= 360
+
+    def update(self, dt):
+        mouse_x, mouse_y = pygame.mouse.get_pos()
+        if self.rect.collidepoint(mouse_x, mouse_y):
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_a]:
+                self.rotate(dt)
+            if keys[pygame.K_d]:
+                self.rotate(-dt)
+
         
         
