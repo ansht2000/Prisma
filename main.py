@@ -9,7 +9,7 @@ def main():
     # pygame setup
     pygame.init()
     pygame.display.set_caption("Prisma")
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT ), pygame.RESIZABLE)
     clock = pygame.time.Clock()
     running = True
     dt = 0
@@ -78,7 +78,7 @@ def main():
                         if not laser.laser_on:
                             laser.laser_on = True
                             laser_start = laser.get_laser_point()
-                            laser.laser_beam = LaserBeam(laser_start, screen, laser.orientation)
+                            laser.laser_beam = LaserBeam(laser_start, screen, laser.orientation, mirrors)
                         else:
                             laser.laser_on = False
                             laser.laser_beam.kill()

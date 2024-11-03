@@ -40,8 +40,7 @@ class Mirror(pygame.sprite.Sprite):
         )
 
         # Draw the line and the hitbox for debugging
-        pygame.draw.line(self.screen, "white", start_pos, end_pos)
-        # pygame.draw.rect(self.screen, "white", self.rect)
+        pygame.draw.line(self.screen, "white", start_pos, end_pos, 5) 
         return self.rect
 
     def set_position(self, x, y):
@@ -64,6 +63,3 @@ class Mirror(pygame.sprite.Sprite):
                 self.rotate(dt)
             if keys[pygame.K_d]:
                 self.rotate(-dt)
-
-        
-        
