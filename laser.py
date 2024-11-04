@@ -77,12 +77,11 @@ class Laser(pygame.sprite.Sprite):
     def rotate(self, dt):
         self.orientation += ROTATION_SPEED * dt
         self.orientation %= 360
+        if self.laser_on:
+            self.laser_beam.start_pos = self.get_laser_point()
+            self.laser_beam.orientation = self.orientation
 
     def update(self, dt):
-        # This is here for the meantime since the laser beam does not move with the laser
-        # Will remove when laser beam moving logic is correctly implemented
-        if self.laser_on:
-            return
         mouse_x, mouse_y = pygame.mouse.get_pos()
         if self.rect.collidepoint(mouse_x, mouse_y):
             keys = pygame.key.get_pressed()
