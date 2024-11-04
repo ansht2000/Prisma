@@ -70,6 +70,8 @@ class Laser(pygame.sprite.Sprite):
 
     def check_delete(self, table_rect):
         if self.rect.colliderect(table_rect) and not pygame.mouse.get_pressed()[0]:
+            if self.laser_beam:
+                self.laser_beam.kill()
             self.kill()
 
     def rotate(self, dt):

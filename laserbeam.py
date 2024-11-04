@@ -2,7 +2,7 @@ import pygame
 import math
 
 class LaserBeam(pygame.sprite.Sprite):
-    def __init__(self, start_point, screen, orientation, mirrors, max_reflections=10):
+    def __init__(self, start_point, screen, orientation, mirrors, max_reflections=20):
         if hasattr(self, "containers"):
             super().__init__(self.containers)
         else:

@@ -64,7 +64,7 @@ def main():
                 else:
                     # Check if any laser is clicked in the main area
                     for laser in lasers:
-                        if laser.rect.collidepoint(event.pos) and not laser.laser_on:
+                        if laser.rect.collidepoint(event.pos):
                             selected_laser = laser
                             dragging = True
                             break
@@ -91,6 +91,8 @@ def main():
         elif dragging and selected_laser:
             mouse_x, mouse_y = pygame.mouse.get_pos()
             selected_laser.set_position(mouse_x, mouse_y)
+            if selected_laser.laser_beam:
+                selected_laser.laser_beam.start_pos = selected_laser.get_laser_point()
 
         # Fill the screen with a color to wipe away anything from the last frame
         screen.fill("black")
