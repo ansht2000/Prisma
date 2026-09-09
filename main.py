@@ -1,9 +1,11 @@
 import pygame
-from mirror import Mirror
-from table import Table
+
+from constants import *
 from laser import Laser
 from laserbeam import LaserBeam
-from constants import *
+from mirror import Mirror
+from table import Table
+
 
 def main():
     # pygame setup

@@ -1,6 +1,6 @@
 # ignore local virtual environment
-venv/
+.venv/
 # ignore cached filed
 __pycache__/
 # ignore test stuff
-test_stuff/
+test/
