@@ -34,16 +34,18 @@ class Mirror(pygame.sprite.Sprite):
         self.end_pos = end_pos
 
         # Create a larger hitbox around the line
-        padding = 30  # Padding around the line to create a larger hitbox
+        padding = 10  # Padding around the line to create a larger hitbox
         self.rect = pygame.Rect(
             min(start_x, end_pos.x) - padding, 
             min(start_y, end_pos.y) - padding, 
-            abs(start_x - end_pos.x) + padding, 
-            abs(start_y - end_pos.y) + padding
+            abs(start_x - end_pos.x) + 2 * padding, 
+            abs(start_y - end_pos.y) + 2 * padding
         )
 
         # Draw the line and the hitbox for debugging
-        pygame.draw.line(self.screen, "white", start_pos, end_pos, 5) 
+        pygame.draw.line(self.screen, "white", start_pos, end_pos, 5)
+        # draw hit box
+        pygame.draw.rect(self.screen, "white", self.rect, 5)
         return self.rect
 
     def set_position(self, x, y):
