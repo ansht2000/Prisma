@@ -1,6 +1,9 @@
-import pygame
 import math
+
+import pygame
+
 from constants import ROTATION_SPEED
+
 
 class Laser(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y, screen, length=100, orientation=0, add_to_groups = True):
@@ -23,7 +26,7 @@ class Laser(pygame.sprite.Sprite):
         self.laser_on = False
         self.laser_beam = None
 
-    def draw(self):
+    def _compute_corners(self):
         radians = math.radians(self.orientation)
         dir_x = math.cos(radians)
         dir_y = -math.sin(radians)  # Invert the y-component
@@ -60,8 +63,15 @@ class Laser(pygame.sprite.Sprite):
             max(y_coords) - min(y_coords)
         )
 
-        # Draw the laser
-        pygame.draw.polygon(self.screen, "white", [top_left, top_right, bottom_right, bottom_left])
+        return self.rect
+
+    def draw(self):
+        # Corners are recomputed every frame so the laser follows drags and rotations
+        self._compute_corners()
+        pygame.draw.polygon(
+            self.screen, "white",
+            [self.top_left, self.top_right, self.bottom_right, self.bottom_left]
+        )
         return self.rect
 
     def set_position(self, x, y):
@@ -78,6 +88,14 @@ class Laser(pygame.sprite.Sprite):
         self.orientation += ROTATION_SPEED * dt
         self.orientation %= 360
         if self.laser_on:
+            self.laser_beam.start_pos = self.get_laser_point()
+            self.laser_beam.orientation = self.orientation
+
+    def set_orientation(self, degrees):
+        self.orientation = degrees % 360
+        # get_laser_point() reads the corners, so refresh them before moving the beam
+        self._compute_corners()
+        if self.laser_on and self.laser_beam:
             self.laser_beam.start_pos = self.get_laser_point()
             self.laser_beam.orientation = self.orientation
 

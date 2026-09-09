@@ -7,3 +7,15 @@ requires-python = ">=3.13"
 dependencies = [
     "pygame>=2.6.1",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "unit: fast, isolated tests of a single class/function (tests/unit)",
+    "integration: tests that drive the real main() event loop (tests/integration)",
+]

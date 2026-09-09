@@ -1,6 +1,9 @@
-import pygame
 import math
+
+import pygame
+
 from constants import ROTATION_SPEED
+
 
 class Mirror(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y, screen, length=100, orientation=45, add_to_groups = True):
@@ -31,7 +34,7 @@ class Mirror(pygame.sprite.Sprite):
         self.end_pos = end_pos
 
         # Create a larger hitbox around the line
-        padding = 15  # Padding around the line to create a larger hitbox
+        padding = 30  # Padding around the line to create a larger hitbox
         self.rect = pygame.Rect(
             min(start_x, end_pos.x) - padding, 
             min(start_y, end_pos.y) - padding, 
@@ -54,6 +57,9 @@ class Mirror(pygame.sprite.Sprite):
     def rotate(self, dt):
         self.orientation += ROTATION_SPEED * dt
         self.orientation %= 360
+
+    def set_orientation(self, degrees):
+        self.orientation = degrees % 360
 
     def update(self, dt):
         mouse_x, mouse_y = pygame.mouse.get_pos()
