@@ -44,8 +44,6 @@ class Mirror(pygame.sprite.Sprite):
 
         # Draw the line and the hitbox for debugging
         pygame.draw.line(self.screen, "white", start_pos, end_pos, 5)
-        # draw hit box
-        pygame.draw.rect(self.screen, "white", self.rect, 5)
         return self.rect
 
     def set_position(self, x, y):
