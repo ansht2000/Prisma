@@ -13,7 +13,7 @@ pytestmark = pytest.mark.unit
 
 
 class TestMirrorSetOrientation:
-    def test_sets_a_plain_value(self, screen):
+    def test_sets_a_plain_value(self, screen: pygame.Surface) -> None:
         mirror = Mirror(400, 300, screen, add_to_groups=False)
         mirror.draw()
 
@@ -21,7 +21,7 @@ class TestMirrorSetOrientation:
 
         assert mirror.orientation == 90
 
-    def test_wraps_values_above_360(self, screen):
+    def test_wraps_values_above_360(self, screen: pygame.Surface) -> None:
         mirror = Mirror(400, 300, screen, add_to_groups=False)
         mirror.draw()
 
@@ -29,7 +29,7 @@ class TestMirrorSetOrientation:
 
         assert mirror.orientation == 90
 
-    def test_wraps_negative_values(self, screen):
+    def test_wraps_negative_values(self, screen: pygame.Surface) -> None:
         mirror = Mirror(400, 300, screen, add_to_groups=False)
         mirror.draw()
 
@@ -37,7 +37,7 @@ class TestMirrorSetOrientation:
 
         assert mirror.orientation == 270
 
-    def test_accepts_fractional_degrees(self, screen):
+    def test_accepts_fractional_degrees(self, screen: pygame.Surface) -> None:
         mirror = Mirror(400, 300, screen, add_to_groups=False)
         mirror.draw()
 
@@ -47,7 +47,7 @@ class TestMirrorSetOrientation:
 
 
 class TestLaserSetOrientation:
-    def test_sets_a_plain_value(self, screen):
+    def test_sets_a_plain_value(self, screen: pygame.Surface) -> None:
         laser = Laser(400, 300, screen, orientation=0, add_to_groups=False)
         laser.draw()
 
@@ -55,7 +55,7 @@ class TestLaserSetOrientation:
 
         assert laser.orientation == 135
 
-    def test_wraps_values_above_360(self, screen):
+    def test_wraps_values_above_360(self, screen: pygame.Surface) -> None:
         laser = Laser(400, 300, screen, orientation=0, add_to_groups=False)
         laser.draw()
 
@@ -63,7 +63,7 @@ class TestLaserSetOrientation:
 
         assert laser.orientation == 40
 
-    def test_wraps_negative_values(self, screen):
+    def test_wraps_negative_values(self, screen: pygame.Surface) -> None:
         laser = Laser(400, 300, screen, orientation=0, add_to_groups=False)
         laser.draw()
 
@@ -71,7 +71,7 @@ class TestLaserSetOrientation:
 
         assert laser.orientation == 330
 
-    def test_refreshes_corners_immediately(self, screen):
+    def test_refreshes_corners_immediately(self, screen: pygame.Surface) -> None:
         """get_laser_point() reads corner attributes that only draw() used to
         refresh -- set_orientation() must recompute them itself, or the emitter
         point stays stale until the next frame's draw() call."""
@@ -87,7 +87,7 @@ class TestLaserSetOrientation:
         expected = pygame.Vector2(400 - laser.length / 2, 300)
         assert (after - expected).length() < 1.0
 
-    def test_draw_agrees_with_the_snap(self, screen):
+    def test_draw_agrees_with_the_snap(self, screen: pygame.Surface) -> None:
         """A subsequent draw() should not move the emitter again -- it must
         already reflect the snapped orientation."""
         laser = Laser(400, 300, screen, orientation=0, add_to_groups=False)

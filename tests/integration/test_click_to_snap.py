@@ -7,6 +7,7 @@ tests/unit/test_input_box.py for that).
 import os
 import threading
 import time
+from typing import Any, Iterator
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
@@ -21,17 +22,17 @@ pytestmark = pytest.mark.integration
 SETTLE = 0.15
 
 
-def post(event_type, **kwargs):
+def post(event_type: int, **kwargs: Any) -> None:
     pygame.event.post(pygame.event.Event(event_type, kwargs))
 
 
-def type_digits(text):
+def type_digits(text: str) -> None:
     for char in text:
         post(pygame.KEYDOWN, key=ord(char), unicode=char)
     time.sleep(SETTLE)
 
 
-def press_release(pos_down, pos_up):
+def press_release(pos_down: tuple[float, float], pos_up: tuple[float, float]) -> None:
     post(pygame.MOUSEBUTTONDOWN, pos=pos_down, button=1)
     time.sleep(SETTLE)
     post(pygame.MOUSEBUTTONUP, pos=pos_up, button=1)
@@ -39,7 +40,7 @@ def press_release(pos_down, pos_up):
 
 
 @pytest.fixture
-def running_game():
+def running_game() -> Iterator[pygame.Surface]:
     """Starts the real main() loop on a background thread and tears it down
     afterwards by posting a QUIT event."""
     thread = threading.Thread(target=game.main, daemon=True)
@@ -51,23 +52,26 @@ def running_game():
         time.sleep(0.05)
     time.sleep(0.3)
 
-    yield pygame.display.get_surface()
+    surface = pygame.display.get_surface()
+    assert surface is not None
+    yield surface
 
     post(pygame.QUIT)
     thread.join(timeout=3)
 
 
-def spawn_mirror(screen, x=400, y=300):
+def spawn_mirror(screen: pygame.Surface, x: float = 400, y: float = 300) -> Mirror:
     mirror = Mirror(x, y, screen)  # joins the live sprite groups via .containers
     time.sleep(0.3)
     return mirror
 
 
 class TestClickOpensAndSnaps:
-    def test_a_click_opens_the_box_and_enter_snaps_the_value(self, running_game):
+    def test_a_click_opens_the_box_and_enter_snaps_the_value(self, running_game: pygame.Surface) -> None:
         screen = running_game
         mirror = spawn_mirror(screen)
         mirror.set_orientation(0)
+        assert mirror.rect is not None
         spot = mirror.rect.center
 
         press_release(spot, spot)
@@ -79,10 +83,11 @@ class TestClickOpensAndSnaps:
 
 
 class TestDragDoesNotOpenTheBox:
-    def test_dragging_past_the_click_threshold_leaves_the_box_closed(self, running_game):
+    def test_dragging_past_the_click_threshold_leaves_the_box_closed(self, running_game: pygame.Surface) -> None:
         screen = running_game
         mirror = spawn_mirror(screen)
         mirror.set_orientation(0)
+        assert mirror.rect is not None
         spot = mirror.rect.center
 
         press_release(spot, (spot[0] + 60, spot[1] + 60))
@@ -95,10 +100,11 @@ class TestDragDoesNotOpenTheBox:
 
 
 class TestClickingOffTheBox:
-    def test_click_away_from_the_box_commits_the_typed_value(self, running_game):
+    def test_click_away_from_the_box_commits_the_typed_value(self, running_game: pygame.Surface) -> None:
         screen = running_game
         mirror = spawn_mirror(screen)
         mirror.set_orientation(0)
+        assert mirror.rect is not None
         spot = mirror.rect.center
 
         press_release(spot, spot)
@@ -109,10 +115,11 @@ class TestClickingOffTheBox:
 
         assert mirror.orientation == 42
 
-    def test_the_dismissing_click_does_not_start_a_new_drag(self, running_game):
+    def test_the_dismissing_click_does_not_start_a_new_drag(self, running_game: pygame.Surface) -> None:
         screen = running_game
         mirror = spawn_mirror(screen)
         mirror.set_orientation(0)
+        assert mirror.rect is not None
         spot = mirror.rect.center
 
         press_release(spot, spot)

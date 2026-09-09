@@ -1,24 +1,36 @@
+from typing import Protocol
+
 import pygame
 
 from constants import *
 from render_utils import render_text
 
 
+class Orientable(Protocol):
+    """Structural type for anything InputBox can snap to a degree value --
+    Mirror and Laser both satisfy this without either needing to import
+    input_box.py."""
+    rect: pygame.Rect | None
+
+    def set_orientation(self, degrees: float) -> None: ...
+
+
 class InputBox:
     # A small pop-up that reads a number of degrees and snaps its target to that orientation
-    def __init__(self, target, screen, arena_width):
-        self.target = target
-        self.screen = screen
-        self.text = ""
-        self.font = pygame.font.SysFont("Arial", INPUT_BOX_FONT_SIZE)
-        self.label_font = pygame.font.SysFont("Arial", INPUT_BOX_LABEL_FONT_SIZE)
-        self.rect = self._position_near_target(arena_width)
+    def __init__(self, target: Orientable, screen: pygame.Surface, arena_width: float) -> None:
+        self.target: Orientable = target
+        self.screen: pygame.Surface = screen
+        self.text: str = ""
+        self.font: pygame.font.Font = pygame.font.SysFont("Arial", INPUT_BOX_FONT_SIZE)
+        self.label_font: pygame.font.Font = pygame.font.SysFont("Arial", INPUT_BOX_LABEL_FONT_SIZE)
+        self.rect: pygame.Rect = self._position_near_target(arena_width)
 
-    def _position_near_target(self, arena_width):
+    def _position_near_target(self, arena_width: float) -> pygame.Rect:
         # Sit just above the object, dropping below it when there is no room at the top
+        assert self.target.rect is not None
         target_rect = self.target.rect
-        x = target_rect.centerx - INPUT_BOX_WIDTH // 2
-        y = target_rect.top - INPUT_BOX_HEIGHT - INPUT_BOX_MARGIN
+        x: float = target_rect.centerx - INPUT_BOX_WIDTH // 2
+        y: float = target_rect.top - INPUT_BOX_HEIGHT - INPUT_BOX_MARGIN
         if y < 0:
             y = target_rect.bottom + INPUT_BOX_MARGIN
         # Keep the whole box inside the arena, clear of the table on the right
@@ -26,7 +38,7 @@ class InputBox:
         y = max(0, min(y, self.screen.get_height() - INPUT_BOX_HEIGHT))
         return pygame.Rect(x, y, INPUT_BOX_WIDTH, INPUT_BOX_HEIGHT)
 
-    def handle_event(self, event):
+    def handle_event(self, event: pygame.event.Event) -> bool:
         # Feed the box one event, returns True once it should close
         if event.type == pygame.MOUSEBUTTONDOWN:
             # Clicking off the box commits, same as pressing enter
@@ -51,7 +63,7 @@ class InputBox:
 
         return False
 
-    def _is_allowed(self, char):
+    def _is_allowed(self, char: str) -> bool:
         if char.isdigit():
             return True
         # A minus sign only leads, and only one decimal point
@@ -59,7 +71,7 @@ class InputBox:
             return True
         return bool(char == "." and "." not in self.text)
 
-    def commit(self):
+    def commit(self) -> None:
         try:
             degrees = float(self.text)
         except ValueError:
@@ -67,7 +79,7 @@ class InputBox:
             return
         self.target.set_orientation(degrees)
 
-    def draw(self):
+    def draw(self) -> None:
         pygame.draw.rect(self.screen, (20, 20, 20), self.rect)
         pygame.draw.rect(self.screen, "white", self.rect, 2)
 

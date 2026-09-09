@@ -2,5 +2,6 @@
 .venv/
 # ignore cached filed
 __pycache__/
+.mypy_cache/
 # ignore test stuff
 test/

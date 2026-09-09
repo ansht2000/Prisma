@@ -1,44 +1,44 @@
 import pygame
 
 from constants import *
-from input_box import InputBox
+from input_box import InputBox, Orientable
 from laser import Laser
 from laserbeam import LaserBeam
 from mirror import Mirror
 from table import Table
 
 
-def main():
+def main() -> None:
     # pygame setup
     pygame.init()
     pygame.display.set_caption("Prisma")
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT ), pygame.RESIZABLE)
     clock = pygame.time.Clock()
     running = True
-    dt = 0
+    dt: float = 0
 
     # Make groups for all the relevant collections of objects
-    updatable = pygame.sprite.Group()
-    drawable = pygame.sprite.Group()
-    deletable = pygame.sprite.Group() # Objects that can be dragged to the table and deleted
-    mirrors = pygame.sprite.Group()
-    lasers = pygame.sprite.Group()
-    laser_beams = pygame.sprite.Group()
+    updatable: pygame.sprite.Group = pygame.sprite.Group()
+    drawable: pygame.sprite.Group = pygame.sprite.Group()
+    deletable: pygame.sprite.Group = pygame.sprite.Group()  # Objects that can be dragged to the table and deleted
+    mirrors: pygame.sprite.Group = pygame.sprite.Group()
+    lasers: pygame.sprite.Group = pygame.sprite.Group()
+    laser_beams: pygame.sprite.Group = pygame.sprite.Group()
     Mirror.containers = (updatable, drawable, mirrors, deletable)
     Laser.containers = (updatable, drawable, lasers, deletable)
     LaserBeam.containers = (updatable, drawable, laser_beams)
     table = Table(screen)
     # The currently selected mirror
-    selected_mirror = None
-    selected_laser = None
+    selected_mirror: Mirror | None = None
+    selected_laser: Laser | None = None
     # Whether dragging is active
     dragging = False
     # The open degree-entry box, if any
-    input_box = None
+    input_box: InputBox | None = None
     # Where the left button went down, and which existing object it landed on, so
     # that a click can be told apart from a drag once the button comes back up
-    press_pos = None
-    click_target = None
+    press_pos: tuple[int, int] | None = None
+    click_target: Orientable | None = None
 
     while running:
         for event in pygame.event.get():
@@ -71,7 +71,7 @@ def main():
                 else:
                     # Check if any mirror is clicked in the main area
                     for mirror in mirrors:
-                        if mirror.rect.collidepoint(event.pos):
+                        if mirror.rect is not None and mirror.rect.collidepoint(event.pos):
                             selected_mirror = mirror
                             click_target = mirror
                             dragging = True
@@ -86,7 +86,7 @@ def main():
                 else:
                     # Check if any laser is clicked in the main area
                     for laser in lasers:
-                        if laser.rect.collidepoint(event.pos):
+                        if laser.rect is not None and laser.rect.collidepoint(event.pos):
                             selected_laser = laser
                             click_target = laser
                             dragging = True
@@ -107,13 +107,14 @@ def main():
                 click_target = None
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
                 for laser in lasers:
-                    if laser.rect.collidepoint(event.pos):
+                    if laser.rect is not None and laser.rect.collidepoint(event.pos):
                         if not laser.laser_on:
                             laser.laser_on = True
                             laser_start = laser.get_laser_point()
                             laser.laser_beam = LaserBeam(laser_start, screen, laser.orientation, mirrors)
                         else:
                             laser.laser_on = False
+                            assert laser.laser_beam is not None
                             laser.laser_beam.kill()
                             laser.laser_beam = None
 

@@ -10,6 +10,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "mypy>=2.3.1",
     "pytest>=9.1.1",
 ]
 
@@ -19,3 +20,11 @@ markers = [
     "unit: fast, isolated tests of a single class/function (tests/unit)",
     "integration: tests that drive the real main() event loop (tests/integration)",
 ]
+
+[tool.mypy]
+python_version = "3.13"
+files = ["*.py", "tests"]
+disallow_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_return_any = true

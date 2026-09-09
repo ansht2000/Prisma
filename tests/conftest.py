@@ -4,6 +4,7 @@ SDL_VIDEODRIVER must be set to "dummy" before pygame is imported anywhere,
 so it lives here rather than in a fixture -- fixtures run too late.
 """
 import os
+from typing import Iterator
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
@@ -14,7 +15,7 @@ from constants import SCREEN_WIDTH, SCREEN_HEIGHT
 
 
 @pytest.fixture
-def screen():
+def screen() -> Iterator[pygame.Surface]:
     """A real pygame surface (backed by the dummy driver) for objects that draw."""
     pygame.init()
     surface = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))

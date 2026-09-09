@@ -1,21 +1,38 @@
-import pygame
 import math
+from typing import ClassVar
+
+import pygame
+
+from mirror import Mirror
+
 
 class LaserBeam(pygame.sprite.Sprite):
-    def __init__(self, start_point, screen, orientation, mirrors, max_reflections=20):
+    # Declared, not assigned: main() sets this class attribute on startup, and
+    # the hasattr() check in __init__ relies on it being genuinely absent
+    # until then, so this must stay a bare annotation.
+    containers: ClassVar[tuple[pygame.sprite.Group, ...]]
+
+    def __init__(
+        self,
+        start_point: pygame.Vector2,
+        screen: pygame.Surface,
+        orientation: float,
+        mirrors: pygame.sprite.Group,
+        max_reflections: int = 20,
+    ) -> None:
         if hasattr(self, "containers"):
-            super().__init__(self.containers)
+            super().__init__(*self.containers)
         else:
             super().__init__()
-        self.screen = screen
-        self.start_pos = start_point
-        self.orientation = orientation
-        self.mirrors = mirrors
-        self.max_reflections = max_reflections
-        self.beam_path = []
+        self.screen: pygame.Surface = screen
+        self.start_pos: pygame.Vector2 = start_point
+        self.orientation: float = orientation
+        self.mirrors: pygame.sprite.Group = mirrors
+        self.max_reflections: int = max_reflections
+        self.beam_path: list[pygame.Vector2] = []
         self.compute_beam_path()
 
-    def compute_beam_path(self):
+    def compute_beam_path(self) -> None:
         self.beam_path = [self.start_pos]
 
         current_point = self.start_pos
@@ -23,11 +40,13 @@ class LaserBeam(pygame.sprite.Sprite):
         direction = pygame.Vector2(math.cos(angle_rad), -math.sin(angle_rad))  # Adjust for Pygame's coordinate system
 
         for _ in range(self.max_reflections):
-            closest_intersection_point = None
+            closest_intersection_point: pygame.Vector2 | None = None
+            closest_mirror: Mirror | None = None
             min_distance = float('inf')
 
             # For each mirror, check for intersection
             for mirror in self.mirrors:
+                assert mirror.start_pos is not None and mirror.end_pos is not None  # draw() has run
                 intersection = self.ray_segment_intersect(current_point, direction, mirror.start_pos, mirror.end_pos)
                 if intersection:
                     intersection_point, t = intersection
@@ -42,6 +61,8 @@ class LaserBeam(pygame.sprite.Sprite):
                 self.beam_path.append(closest_intersection_point)
 
                 # Compute reflected direction
+                assert closest_mirror is not None
+                assert closest_mirror.start_pos is not None and closest_mirror.end_pos is not None
                 mirror_direction = (closest_mirror.end_pos - closest_mirror.start_pos).normalize()
                 mirror_normal = pygame.Vector2(-mirror_direction.y, mirror_direction.x)  # Perpendicular to mirror
 
@@ -56,7 +77,13 @@ class LaserBeam(pygame.sprite.Sprite):
                 self.beam_path.append(end_point)
                 break
 
-    def ray_segment_intersect(self, ray_start, ray_direc, line_start, line_end):
+    def ray_segment_intersect(
+        self,
+        ray_start: pygame.Vector2,
+        ray_direc: pygame.Vector2,
+        line_start: pygame.Vector2,
+        line_end: pygame.Vector2,
+    ) -> tuple[pygame.Vector2, float] | None:
         # Small threshold to handle floating-point errors
         epsilon = 1e-6
 
@@ -84,7 +111,7 @@ class LaserBeam(pygame.sprite.Sprite):
         return None
 
 
-    def compute_beam_end(self, current_point, direction):
+    def compute_beam_end(self, current_point: pygame.Vector2, direction: pygame.Vector2) -> pygame.Vector2:
         # Screen dimensions
         screen_width = self.screen.get_width()
         screen_height = self.screen.get_height()
@@ -93,7 +120,7 @@ class LaserBeam(pygame.sprite.Sprite):
         table_boundary_x = screen_width * 5 / 6
 
         # Initialize a list to hold potential intersection t-values
-        t_values = []
+        t_values: list[float] = []
 
         # Left boundary (x = 0)
         if direction.x != 0:
@@ -139,7 +166,7 @@ class LaserBeam(pygame.sprite.Sprite):
             )
             return end_pos
 
-    def draw(self):
+    def draw(self) -> None:
         if len(self.beam_path) < 2:
             return
         for i in range(len(self.beam_path) - 1):
@@ -153,6 +180,6 @@ class LaserBeam(pygame.sprite.Sprite):
                 7  # Adjust the width as needed
             )
 
-    def update(self, dt):
+    def update(self, dt: float) -> None:
         # Recompute the beam path
         self.compute_beam_path()
