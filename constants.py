@@ -17,3 +17,17 @@ INPUT_BOX_MARGIN: int = 12
 INPUT_BOX_FONT_SIZE: int = 26
 INPUT_BOX_LABEL_FONT_SIZE: int = 18
 INPUT_BOX_MAX_CHARS: int = 8
+
+# Menu screen
+MENU_TITLE: str = "Prisma"
+MENU_TITLE_FONT_SIZE: int = 72
+MENU_BUTTON_FONT_SIZE: int = 32
+MENU_BUTTON_WIDTH: int = 320
+MENU_BUTTON_HEIGHT: int = 64
+MENU_BUTTON_SPACING: int = 20
+MENU_TITLE_GAP: int = 70  # vertical gap between the title and the first button
+MENU_BUTTON_FILL: tuple[int, int, int] = (28, 28, 28)
+MENU_BUTTON_HOVER_FILL: tuple[int, int, int] = (64, 64, 64)
+MENU_BORDER_WIDTH: int = 2
+MENU_ENABLED_COLOR: tuple[int, int, int] = (255, 255, 255)
+MENU_DISABLED_COLOR: tuple[int, int, int] = (110, 110, 110)

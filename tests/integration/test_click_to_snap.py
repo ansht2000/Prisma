@@ -1,8 +1,11 @@
-"""Integration tests driving the real main() event loop in a background
-thread, posting synthetic pygame events the way an actual mouse/keyboard
-would. These exercise the click-vs-drag disambiguation and InputBox routing
-wired into main.py, not just the InputBox class in isolation (see
+"""Integration tests driving the real app loop in a background thread, posting
+synthetic pygame events the way an actual mouse/keyboard would. These exercise
+the click-vs-drag disambiguation and InputBox routing wired into
+SandboxScene, not just the InputBox class in isolation (see
 tests/unit/test_input_box.py for that).
+
+The app boots into the menu, so these start the loop on SandboxScene directly
+rather than clicking through it -- tests/unit/test_menu.py covers that step.
 """
 import os
 import threading
@@ -14,8 +17,9 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 import pygame
 import pytest
 
-import main as game
+import app
 from mirror import Mirror
+from sandbox import SandboxScene
 
 pytestmark = pytest.mark.integration
 
@@ -41,9 +45,9 @@ def press_release(pos_down: tuple[float, float], pos_up: tuple[float, float]) ->
 
 @pytest.fixture
 def running_game() -> Iterator[pygame.Surface]:
-    """Starts the real main() loop on a background thread and tears it down
-    afterwards by posting a QUIT event."""
-    thread = threading.Thread(target=game.main, daemon=True)
+    """Starts the real app loop on SandboxScene in a background thread and
+    tears it down afterwards by posting a QUIT event."""
+    thread = threading.Thread(target=lambda: app.run(SandboxScene), daemon=True)
     thread.start()
 
     for _ in range(100):
