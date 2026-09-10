@@ -1,5 +1,5 @@
 import math
-from typing import ClassVar, TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import pygame
 
@@ -41,7 +41,7 @@ class Laser(pygame.sprite.Sprite):
         self.rect: pygame.Rect | None = None
         self.dragging: bool = False
         self.laser_on: bool = False
-        self.laser_beam: "LaserBeam | None" = None
+        self.laser_beam: LaserBeam | None = None
 
     def _compute_corners(self) -> pygame.Rect:
         radians = math.radians(self.orientation)
