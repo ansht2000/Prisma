@@ -31,3 +31,33 @@ MENU_BUTTON_HOVER_FILL: tuple[int, int, int] = (64, 64, 64)
 MENU_BORDER_WIDTH: int = 2
 MENU_ENABLED_COLOR: tuple[int, int, int] = (255, 255, 255)
 MENU_DISABLED_COLOR: tuple[int, int, int] = (110, 110, 110)
+
+# Level select screen
+LEVEL_SELECT_TITLE: str = "Level Select"
+LEVEL_BOX_SIZE: int = 80
+LEVEL_BOX_MARGIN: int = 30  # gap from the screen edges
+LEVEL_BOX_SPACING: int = 16
+LEVEL_BOX_FONT_SIZE: int = 40
+
+# Levels
+BOARD_COLS: int = 8
+BOARD_ROWS: int = 6
+BOARD_CELL_SIZE: int = 90
+BOARD_LIGHT_CELL: tuple[int, int, int] = (34, 34, 34)
+BOARD_DARK_CELL: tuple[int, int, int] = (22, 22, 22)
+BOARD_GRID_COLOR: tuple[int, int, int] = (70, 70, 70)
+LEVEL_MIRROR_LENGTH: int = 60
+LEVEL_LASER_LENGTH: int = 60
+LEVEL_HINT_FONT_SIZE: int = 20
+LEVEL_HINT_COLOR: tuple[int, int, int] = (150, 150, 150)
+TARGET_SIZE: int = 46
+TARGET_COLOR: tuple[int, int, int] = (60, 200, 90)
+TARGET_HIT_COLOR: tuple[int, int, int] = (255, 220, 80)
+
+# Overlay panel (used by the win screen)
+OVERLAY_TITLE_FONT_SIZE: int = 56
+OVERLAY_PADDING: int = 40
+OVERLAY_TITLE_GAP: int = 40
+OVERLAY_DIM_ALPHA: int = 190  # how strongly the overlay dims the scene behind it
+OVERLAY_PANEL_FILL: tuple[int, int, int] = (18, 18, 18)
+LEVEL_WIN_TITLE: str = "You win!"

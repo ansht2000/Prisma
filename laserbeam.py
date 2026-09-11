@@ -19,8 +19,10 @@ class LaserBeam(pygame.sprite.Sprite):
         orientation: float,
         mirrors: pygame.sprite.Group,
         max_reflections: int = 20,
+        add_to_groups: bool = True,
+        right_boundary: float | None = None,
     ) -> None:
-        if hasattr(self, "containers"):
+        if add_to_groups and hasattr(self, "containers"):
             super().__init__(*self.containers)
         else:
             super().__init__()
@@ -29,6 +31,9 @@ class LaserBeam(pygame.sprite.Sprite):
         self.orientation: float = orientation
         self.mirrors: pygame.sprite.Group = mirrors
         self.max_reflections: int = max_reflections
+        # Where the beam stops on the right. Defaults to the sandbox's table
+        # edge; a level with no table passes the full screen width instead.
+        self.right_boundary: float | None = right_boundary
         self.beam_path: list[pygame.Vector2] = []
         self.compute_beam_path()
 
@@ -117,7 +122,9 @@ class LaserBeam(pygame.sprite.Sprite):
         screen_height = self.screen.get_height()
 
         # Table boundary (table occupies rightmost 1/6th of the screen)
-        table_boundary_x = screen_width * 5 / 6
+        table_boundary_x = (
+            self.right_boundary if self.right_boundary is not None else screen_width * 5 / 6
+        )
 
         # Initialize a list to hold potential intersection t-values
         t_values: list[float] = []

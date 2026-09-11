@@ -89,7 +89,6 @@ def test_clicking_sandbox_switches_the_running_scene(menu_app: threading.Thread)
 
 
 def test_clicking_a_disabled_option_leaves_the_menu_running(menu_app: threading.Thread) -> None:
-    click(button_position("Level Select"))
     click(button_position("Settings"))
 
     assert not hasattr(Mirror, "containers")

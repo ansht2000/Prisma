@@ -68,3 +68,46 @@ def test_snap_without_a_lit_beam_does_not_raise(screen: pygame.Surface) -> None:
     laser.set_orientation(90)  # should not raise
 
     assert laser.orientation == 90
+
+
+class TestBoundaryAndGrouping:
+    """The two parameters levels added to LaserBeam. Both default to the
+    behaviour the sandbox already relied on."""
+
+    def test_a_beam_stops_at_the_table_edge_by_default(self, screen: pygame.Surface) -> None:
+        mirrors: pygame.sprite.Group = pygame.sprite.Group()
+        beam = LaserBeam(pygame.Vector2(100, 300), screen, 0, mirrors, add_to_groups=False)
+
+        # Rightmost 1/6th of the screen is the sandbox's table
+        assert beam.beam_path[-1].x == pytest.approx(screen.get_width() * 5 / 6)
+
+    def test_an_explicit_boundary_lets_the_beam_run_further(self, screen: pygame.Surface) -> None:
+        mirrors: pygame.sprite.Group = pygame.sprite.Group()
+        beam = LaserBeam(
+            pygame.Vector2(100, 300), screen, 0, mirrors,
+            add_to_groups=False,
+            right_boundary=screen.get_width(),
+        )
+
+        assert beam.beam_path[-1].x == pytest.approx(screen.get_width())
+
+    def test_add_to_groups_false_keeps_the_beam_out_of_every_group(self, screen: pygame.Surface) -> None:
+        mirrors: pygame.sprite.Group = pygame.sprite.Group()
+        holder: pygame.sprite.Group = pygame.sprite.Group()
+        LaserBeam.containers = (holder,)
+        try:
+            beam = LaserBeam(pygame.Vector2(100, 300), screen, 0, mirrors, add_to_groups=False)
+            assert beam.groups() == []
+            assert len(holder) == 0
+        finally:
+            del LaserBeam.containers
+
+    def test_beams_still_join_their_containers_by_default(self, screen: pygame.Surface) -> None:
+        mirrors: pygame.sprite.Group = pygame.sprite.Group()
+        holder: pygame.sprite.Group = pygame.sprite.Group()
+        LaserBeam.containers = (holder,)
+        try:
+            beam = LaserBeam(pygame.Vector2(100, 300), screen, 0, mirrors)
+            assert beam in holder
+        finally:
+            del LaserBeam.containers

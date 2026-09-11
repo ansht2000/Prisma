@@ -30,6 +30,13 @@ def start_sandbox(menu: "MenuScene") -> None:
     menu.go_to(SandboxScene(menu.screen))
 
 
+def open_level_select(menu: "MenuScene") -> None:
+    # Local import for the same reason as start_sandbox above
+    from level_select import LevelSelectScene
+
+    menu.go_to(LevelSelectScene(menu.screen))
+
+
 def quit_game(menu: "MenuScene") -> None:
     menu.request_quit()
 
@@ -45,7 +52,7 @@ def not_built_yet(menu: "MenuScene") -> None:
 # here and the screen lays itself out to match -- nothing else needs touching.
 MENU_OPTIONS: list[MenuOption] = [
     MenuOption("Sandbox", start_sandbox),
-    MenuOption("Level Select", not_built_yet, enabled=False),
+    MenuOption("Level Select", open_level_select),
     MenuOption("Settings", not_built_yet, enabled=False),
     MenuOption("Quit", quit_game),
 ]

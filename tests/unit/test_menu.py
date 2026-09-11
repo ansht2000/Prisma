@@ -8,6 +8,7 @@ once it is running.
 import pygame
 import pytest
 
+from level_select import LevelSelectScene
 from menu import MenuOption, MenuScene, MENU_OPTIONS
 from sandbox import SandboxScene
 
@@ -48,7 +49,7 @@ class TestDefaultOptions:
         menu = MenuScene(screen)
 
         disabled = {b.label for b in menu.buttons if not b.enabled}
-        assert disabled == {"Level Select", "Settings"}
+        assert disabled == {"Settings"}
 
 
 class TestClickRouting:
@@ -68,10 +69,17 @@ class TestClickRouting:
         assert menu.quit_requested is True
         assert menu.next_scene is None
 
-    def test_disabled_options_do_nothing(self, screen: pygame.Surface) -> None:
+    def test_level_select_opens_the_level_select_screen(self, screen: pygame.Surface) -> None:
         menu = MenuScene(screen)
 
         click_label(menu, "Level Select")
+
+        assert isinstance(menu.next_scene, LevelSelectScene)
+        assert menu.quit_requested is False
+
+    def test_disabled_options_do_nothing(self, screen: pygame.Surface) -> None:
+        menu = MenuScene(screen)
+
         click_label(menu, "Settings")
 
         assert menu.next_scene is None
