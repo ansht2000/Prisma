@@ -8,17 +8,36 @@ from levels import LevelLayout, next_level
 from mirror import Mirror
 from overlay import ChoiceOverlay, OverlayChoice
 from render_utils import render_text
-from scene import Scene
+from scene import Scene, SceneFactory
 from target import Target
+
+
+def _default_exit(screen: pygame.Surface) -> Scene:
+    from level_select import LevelSelectScene  # local import: it builds LevelScenes
+
+    return LevelSelectScene(screen)
 
 
 class LevelScene(Scene):
     # A single laser-chess puzzle: a fixed laser, a target, and mirrors the
     # player rotates until the beam lands on the target. Rotate by hovering a
     # mirror and holding A/D, or click one to type an exact angle.
-    def __init__(self, screen: pygame.Surface, layout: LevelLayout) -> None:
+    def __init__(
+        self,
+        screen: pygame.Surface,
+        layout: LevelLayout,
+        playlist: list[LevelLayout] | None = None,
+        on_exit: SceneFactory | None = None,
+    ) -> None:
         super().__init__(screen)
         self.layout: LevelLayout = layout
+        # Which set this level belongs to, and where leaving it goes. Custom
+        # levels pass their own pair so that "Next Level" walks the player's
+        # own levels and Escape goes back to the list they came from. Left as
+        # None the built-in set is used, looked up when it is needed rather
+        # than captured here.
+        self.playlist: list[LevelLayout] | None = playlist
+        self.on_exit: SceneFactory = _default_exit if on_exit is None else on_exit
 
         # Board geometry, centered on the screen
         self.board_width: int = BOARD_COLS * BOARD_CELL_SIZE
@@ -54,7 +73,20 @@ class LevelScene(Scene):
         self.beam: LaserBeam | None = None
         self.laser.laser_on = True
 
+        # What each mirror started at, so the level can tell whether the
+        # player has actually moved anything yet
+        self._start_orientations: dict[Mirror, float] = {
+            mirror: mirror.orientation
+            for mirror in self.mirrors
+            if isinstance(mirror, Mirror)
+        }
+        # A level with nothing to rotate has no move to wait for, so it is
+        # treated as touched from the start rather than as unwinnable
+        self.touched: bool = not self._start_orientations
+
         self.hint_font: pygame.font.Font = pygame.font.SysFont("Arial", LEVEL_HINT_FONT_SIZE)
+        # What the line under the board currently says, refreshed each frame
+        self.footer_text: str = layout.hint
         self.input_box: InputBox | None = None
         self.won: bool = False
         self.win_overlay: ChoiceOverlay | None = None
@@ -68,16 +100,14 @@ class LevelScene(Scene):
     # -- navigation, wired into the win overlay ---------------------------
 
     def go_to_level_select(self) -> None:
-        from level_select import LevelSelectScene  # local import: it builds LevelScenes
-
-        self.go_to(LevelSelectScene(self.screen))
+        self.go_to(self.on_exit(self.screen))
 
     def go_to_next_level(self) -> None:
         # Does nothing while this is the last level. Add another entry to
         # LEVELS and this button starts working with no change here.
-        following = next_level(self.layout)
+        following = next_level(self.layout, self.playlist)
         if following is not None:
-            self.go_to(LevelScene(self.screen, following))
+            self.go_to(LevelScene(self.screen, following, self.playlist, self.on_exit))
 
     def _build_win_overlay(self) -> ChoiceOverlay:
         return ChoiceOverlay(
@@ -88,7 +118,7 @@ class LevelScene(Scene):
                 OverlayChoice(
                     "Next Level",
                     self.go_to_next_level,
-                    enabled=next_level(self.layout) is not None,
+                    enabled=next_level(self.layout, self.playlist) is not None,
                 ),
             ],
         )
@@ -151,16 +181,33 @@ class LevelScene(Scene):
             self.beam.compute_beam_path()
         self.beam.draw()
 
-        self._draw_hint()
-
-        if not self.won and self.target.is_hit_by(self.beam.beam_path):
+        self._note_interaction()
+        on_target = self.target.is_hit_by(self.beam.beam_path)
+        if not self.won and self.touched and on_target:
             self.won = True
             self.win_overlay = self._build_win_overlay()
+
+        self.footer_text = (
+            LEVEL_UNTOUCHED_HINT if on_target and not self.touched else self.layout.hint
+        )
+        self._draw_hint()
 
         if self.input_box is not None:
             self.input_box.draw()
         if self.win_overlay is not None:
             self.win_overlay.draw()
+
+    def _note_interaction(self) -> None:
+        # A level is only solved once the player has moved a mirror, so one
+        # that happens to start with the beam already on the target -- easy to
+        # build in the editor -- cannot be won before it has been played. The
+        # flag sticks: turning a mirror back to where it started still counts.
+        if self.touched:
+            return
+        self.touched = any(
+            mirror.orientation != start
+            for mirror, start in self._start_orientations.items()
+        )
 
     # -- drawing helpers ---------------------------------------------------
 
@@ -180,7 +227,7 @@ class LevelScene(Scene):
     def _draw_hint(self) -> None:
         hint_text, hint_rect = render_text(
             self.hint_font,
-            self.layout.hint,
+            self.footer_text,
             LEVEL_HINT_COLOR,
             (self.screen.get_width() // 2, self.board_top + self.board_height + LEVEL_HINT_FONT_SIZE * 2),
         )

@@ -46,6 +46,18 @@ class TestBoxes:
         assert box.rect.top < screen.get_height() - box.rect.bottom
         assert box.rect.left < screen.get_width() - box.rect.right
 
+    def test_boxes_start_below_the_heading(self, screen: pygame.Surface) -> None:
+        scene = LevelSelectScene(screen)
+
+        title_bottom = scene.title_center[1] + scene.title_font.get_height() // 2
+        for box in scene.buttons:
+            assert box.rect.top >= title_bottom
+
+    def test_the_heading_sits_at_the_top_of_the_screen(self, screen: pygame.Surface) -> None:
+        scene = LevelSelectScene(screen)
+
+        assert scene.title_center[1] < screen.get_height() // 4
+
     def test_boxes_are_square(self, screen: pygame.Surface) -> None:
         scene = LevelSelectScene(screen)
 

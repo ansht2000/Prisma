@@ -7,6 +7,44 @@ from render_utils import render_text
 from scene import Scene
 
 
+def layout_boxes(
+    screen: pygame.Surface,
+    title_font: pygame.font.Font,
+    count: int,
+    box_width: int = LEVEL_BOX_SIZE,
+    box_height: int = LEVEL_BOX_SIZE,
+) -> tuple[list[pygame.Rect], tuple[float, float]]:
+    """Lays a screenful of level boxes out under a heading.
+
+    The heading sits at the top of the screen and the first row of boxes
+    starts just below it, filling rightwards from the left margin and
+    wrapping down a row when they run out of width. Shared so the custom
+    level screen and the built-in one are laid out by the same rules.
+
+    Returns the box rects, in order, and where the heading should be centered.
+    """
+    width = screen.get_width()
+    title_height = title_font.get_height()
+    title_center = (width // 2, LEVEL_BOX_MARGIN + title_height // 2)
+
+    top = LEVEL_BOX_MARGIN + title_height + LEVEL_TITLE_GAP
+    step_x = box_width + LEVEL_BOX_SPACING
+    step_y = box_height + LEVEL_BOX_SPACING
+    usable = max(width - 2 * LEVEL_BOX_MARGIN, box_width)
+    per_row = max(usable // step_x, 1)
+
+    rects = [
+        pygame.Rect(
+            LEVEL_BOX_MARGIN + (index % per_row) * step_x,
+            top + (index // per_row) * step_y,
+            box_width,
+            box_height,
+        )
+        for index in range(count)
+    ]
+    return rects, title_center
+
+
 class LevelSelectScene(Scene):
     # Grid of level boxes, one per entry in LEVELS. Escape backs out to the
     # menu; clicking a box starts that level.
@@ -21,27 +59,13 @@ class LevelSelectScene(Scene):
         self._layout()
 
     def _layout(self) -> None:
-        # Boxes are anchored to the top-left corner: level 1 sits in the
-        # corner and later levels fill rightwards, wrapping down a row when
-        # they run out of width. Change this one method to re-arrange them.
-        width = self.screen.get_width()
-        step = LEVEL_BOX_SIZE + LEVEL_BOX_SPACING
-        usable = max(width - 2 * LEVEL_BOX_MARGIN, LEVEL_BOX_SIZE)
-        per_row = max(usable // step, 1)
-
-        self.buttons = []
-        for index, level in enumerate(self.levels):
-            column = index % per_row
-            row = index // per_row
-            rect = pygame.Rect(
-                LEVEL_BOX_MARGIN + column * step,
-                LEVEL_BOX_MARGIN + row * step,
-                LEVEL_BOX_SIZE,
-                LEVEL_BOX_SIZE,
-            )
-            self.buttons.append(Button(str(level.number), rect, self.box_font))
-
-        self.title_center = (width // 2, LEVEL_BOX_MARGIN + MENU_TITLE_FONT_SIZE // 2)
+        rects, self.title_center = layout_boxes(
+            self.screen, self.title_font, len(self.levels)
+        )
+        self.buttons = [
+            Button(str(level.number), rect, self.box_font)
+            for level, rect in zip(self.levels, rects)
+        ]
 
     def start_level(self, layout: LevelLayout) -> None:
         from level import LevelScene  # local import: LevelScene navigates back here

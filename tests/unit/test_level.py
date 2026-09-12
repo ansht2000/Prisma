@@ -9,6 +9,7 @@ import pytest
 import levels
 from level import LevelScene
 from level_select import LevelSelectScene
+from constants import LEVEL_UNTOUCHED_HINT
 from levels import LEVEL_ONE, LevelLayout, MirrorSpec
 from mirror import Mirror
 
@@ -91,6 +92,120 @@ class TestLevelOneIsAPuzzle:
         run_frame(level)
 
         assert level.won is True
+
+
+class TestCannotBeWonInstantly:
+    """A level whose beam already lands on the target before anything has been
+    touched -- easy to build in the editor -- must not hand out the win on its
+    first frame."""
+
+    def pre_solved(self) -> LevelLayout:
+        # Level one, except the mirror already sits at the solving angle
+        return LevelLayout(
+            number=1,
+            hint="",
+            laser_cell=(0, 2),
+            laser_orientation=0,
+            target_cell=(4, 0),
+            mirrors=(MirrorSpec(cell=(4, 2), orientation=SOLVING_ANGLE),),
+        )
+
+    def test_the_beam_is_on_the_target_from_the_first_frame(
+        self, screen: pygame.Surface
+    ) -> None:
+        scene = LevelScene(screen, self.pre_solved())
+
+        run_frame(scene)
+
+        assert scene.beam is not None
+        assert scene.target.is_hit_by(scene.beam.beam_path) is True
+
+    def test_it_is_not_won_before_anything_is_moved(self, screen: pygame.Surface) -> None:
+        scene = LevelScene(screen, self.pre_solved())
+
+        for _ in range(5):
+            run_frame(scene)
+
+        assert scene.won is False
+        assert scene.win_overlay is None
+
+    def test_moving_a_mirror_off_target_does_not_win_either(
+        self, screen: pygame.Surface
+    ) -> None:
+        scene = LevelScene(screen, self.pre_solved())
+        run_frame(scene)
+
+        only_mirror(scene).set_orientation(90)
+        run_frame(scene)
+
+        assert scene.won is False
+
+    def test_it_can_still_be_won_by_playing_it(self, screen: pygame.Surface) -> None:
+        scene = LevelScene(screen, self.pre_solved())
+        run_frame(scene)
+
+        only_mirror(scene).set_orientation(90)
+        run_frame(scene)
+        only_mirror(scene).set_orientation(SOLVING_ANGLE)
+        run_frame(scene)
+
+        assert scene.won is True
+
+    def test_having_touched_it_sticks(self, screen: pygame.Surface) -> None:
+        """Turning a mirror back to where it started still counts as played."""
+        scene = LevelScene(screen, self.pre_solved())
+        run_frame(scene)
+
+        only_mirror(scene).set_orientation(SOLVING_ANGLE + 10)
+        run_frame(scene)
+        only_mirror(scene).set_orientation(SOLVING_ANGLE)
+        run_frame(scene)
+
+        assert scene.touched is True
+        assert scene.won is True
+
+    def test_level_one_counts_as_untouched_to_begin_with(self, level: LevelScene) -> None:
+        assert level.touched is False
+
+    def test_it_asks_the_player_to_move_something(self, screen: pygame.Surface) -> None:
+        """Otherwise the board just sits there looking solved and silent."""
+        scene = LevelScene(screen, self.pre_solved())
+
+        run_frame(scene)
+
+        assert scene.footer_text == LEVEL_UNTOUCHED_HINT
+
+    def test_the_prompt_goes_away_once_it_is_played(self, screen: pygame.Surface) -> None:
+        scene = LevelScene(screen, self.pre_solved())
+        run_frame(scene)
+
+        only_mirror(scene).set_orientation(90)
+        run_frame(scene)
+
+        assert scene.footer_text == scene.layout.hint
+
+    def test_an_ordinary_level_shows_its_own_hint(self, level: LevelScene) -> None:
+        run_frame(level)
+
+        assert level.footer_text == LEVEL_ONE.hint
+
+    def test_a_level_with_nothing_to_move_is_not_held_back(
+        self, screen: pygame.Surface
+    ) -> None:
+        """There is no move to wait for, so the gate does not apply -- such a
+        level is kept off the custom list instead (see custom_levels.to_layout)."""
+        no_mirrors = LevelLayout(
+            number=1,
+            hint="",
+            laser_cell=(0, 2),
+            laser_orientation=0,
+            target_cell=(4, 0),
+            mirrors=(),
+        )
+
+        scene = LevelScene(screen, no_mirrors)
+
+        assert scene.touched is True
 
 
 class TestWinOverlay:

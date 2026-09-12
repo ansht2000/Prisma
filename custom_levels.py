@@ -23,11 +23,12 @@ A saved level looks like this:
     cell = [4, 2]
     orientation = 90.0
 """
+import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
 from constants import BOARD_COLS, BOARD_ROWS
-from levels import Cell, MirrorSpec
+from levels import Cell, LevelLayout, MirrorSpec
 
 # Levels the editor saves live here, next to the game rather than next to
 # whatever directory the game happened to be started from.
@@ -119,6 +120,133 @@ def save(level: CustomLevel, directory: Path = CUSTOM_LEVELS_DIR) -> Path:
     path = path_for(level.name, directory)
     path.write_text(to_toml(level), encoding="utf-8")
     return path
+
+
+def load(path: Path) -> CustomLevel:
+    """Reads one saved level back.
+
+    Raises ValueError if the file is not the shape this module writes --
+    tomllib's own parse error is a ValueError too, so a caller only has to
+    watch for that one type.
+    """
+    with path.open("rb") as handle:
+        parsed = tomllib.load(handle)
+
+    board = _table(parsed.get("board", {}), "board")
+    cols = _int(board.get("cols", BOARD_COLS), "board.cols")
+    rows = _int(board.get("rows", BOARD_ROWS), "board.rows")
+
+    laser_cell: Cell | None = None
+    laser_orientation = 0.0
+    if "laser" in parsed:
+        laser = _table(parsed["laser"], "laser")
+        laser_cell = _cell(laser.get("cell"), "laser.cell", cols, rows)
+        laser_orientation = _float(laser.get("orientation", 0.0), "laser.orientation")
+
+    target_cell: Cell | None = None
+    if "target" in parsed:
+        target = _table(parsed["target"], "target")
+        target_cell = _cell(target.get("cell"), "target.cell", cols, rows)
+
+    mirrors: list[MirrorSpec] = []
+    for index, entry in enumerate(parsed.get("mirrors", [])):
+        mirror = _table(entry, f"mirrors[{index}]")
+        mirrors.append(
+            MirrorSpec(
+                cell=_cell(mirror.get("cell"), f"mirrors[{index}].cell", cols, rows),
+                orientation=_float(
+                    mirror.get("orientation", 0.0), f"mirrors[{index}].orientation"
+                ),
+            )
+        )
+
+    # A file with no name of its own is known by the file it lives in
+    name = parsed.get("name", path.stem)
+    if not isinstance(name, str):
+        raise ValueError("name must be text")
+
+    return CustomLevel(
+        name=name,
+        laser_cell=laser_cell,
+        laser_orientation=laser_orientation,
+        target_cell=target_cell,
+        mirrors=tuple(mirrors),
+        cols=cols,
+        rows=rows,
+    )
+
+
+def load_all(directory: Path = CUSTOM_LEVELS_DIR) -> list[CustomLevel]:
+    """Every level saved in the directory, in name order.
+
+    A file that cannot be read -- hand-edited into nonsense, or not a level at
+    all -- is left out rather than taking the whole list down with it.
+    """
+    if not directory.is_dir():
+        return []
+
+    levels: list[CustomLevel] = []
+    for path in sorted(directory.glob("*" + FILE_EXTENSION)):
+        try:
+            levels.append(load(path))
+        except (OSError, ValueError):
+            continue
+    return sorted(levels, key=lambda level: level.name.lower())
+
+
+def to_layout(level: CustomLevel, number: int = 1) -> LevelLayout | None:
+    """The level as something LevelScene can play, or None if it cannot be.
+
+    A level saved without a laser or without a target has nothing to solve,
+    one with no mirrors has nothing the player can move, and one built on a
+    differently sized board would not fit the one the game draws -- in each
+    case there is no puzzle to play.
+    """
+    if level.laser_cell is None or level.target_cell is None:
+        return None
+    if not level.mirrors:
+        return None
+    if (level.cols, level.rows) != (BOARD_COLS, BOARD_ROWS):
+        return None
+    return LevelLayout(
+        number=number,
+        hint=level.name,
+        laser_cell=level.laser_cell,
+        laser_orientation=level.laser_orientation,
+        target_cell=level.target_cell,
+        mirrors=level.mirrors,
+    )
+
+
+# -- TOML value reading ----------------------------------------------------
+
+
+def _table(value: object, where: str) -> dict:
+    if not isinstance(value, dict):
+        raise ValueError(f"{where} must be a table")
+    return value
+
+
+def _int(value: object, where: str) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError(f"{where} must be a whole number")
+    return value
+
+
+def _float(value: object, where: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{where} must be a number")
+    return float(value)
+
+
+def _cell(value: object, where: str, cols: int, rows: int) -> Cell:
+    if not isinstance(value, list) or len(value) != 2:
+        raise ValueError(f"{where} must be a pair of numbers")
+    col = _int(value[0], where)
+    row = _int(value[1], where)
+    if not (0 <= col < cols and 0 <= row < rows):
+        raise ValueError(f"{where} is off the board")
+    return (col, row)
 
 
 # -- TOML value formatting -------------------------------------------------

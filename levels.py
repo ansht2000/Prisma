@@ -46,10 +46,12 @@ def level_by_number(number: int) -> LevelLayout | None:
     return None
 
 
-def next_level(current: LevelLayout) -> LevelLayout | None:
-    # The level after this one in LEVELS order, or None if it is the last
-    for index, layout in enumerate(LEVELS):
+def next_level(current: LevelLayout, levels: list[LevelLayout] | None = None) -> LevelLayout | None:
+    # The level after this one, or None if it is the last. Defaults to the
+    # built-in set, but a custom set can be handed in to walk that instead.
+    pool = LEVELS if levels is None else levels
+    for index, layout in enumerate(pool):
         if layout.number == current.number:
-            following = LEVELS[index + 1:]
+            following = pool[index + 1:]
             return following[0] if following else None
     return None

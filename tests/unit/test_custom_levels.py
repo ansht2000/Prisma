@@ -11,8 +11,11 @@ from custom_levels import (
     CustomLevel,
     FALLBACK_FILE_STEM,
     file_stem_for,
+    load,
+    load_all,
     path_for,
     save,
+    to_layout,
     to_toml,
 )
 from levels import MirrorSpec
@@ -151,3 +154,110 @@ class TestSave:
         assert len(list(tmp_path.iterdir())) == 1
         parsed = tomllib.loads((tmp_path / "Tricky_bounce.toml").read_text())
         assert parsed["target"]["cell"] == [7, 5]
+
+
+class TestLoad:
+    def test_a_saved_level_reads_back_the_same(self, tmp_path: Path) -> None:
+        path = save(make_level(), tmp_path)
+
+        assert load(path) == make_level()
+
+    def test_a_level_with_no_pieces_reads_back(self, tmp_path: Path) -> None:
+        path = save(CustomLevel(name="empty"), tmp_path)
+
+        assert load(path) == CustomLevel(name="empty")
+
+    def test_a_file_with_no_name_is_known_by_its_file_name(self, tmp_path: Path) -> None:
+        path = tmp_path / "nameless.toml"
+        path.write_text("[target]\ncell = [1, 1]\n")
+
+        assert load(path).name == "nameless"
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "this is not = valid = toml",
+            'name = "x"\n[laser]\ncell = "over there"\n',
+            'name = "x"\n[laser]\ncell = [1]\n',
+            'name = "x"\n[laser]\ncell = [1, 1]\norientation = "sideways"\n',
+            'name = "x"\n[target]\ncell = [99, 99]\n',  # off the board
+            'name = "x"\n[[mirrors]]\ncell = [-1, 0]\n',
+            "name = 12\n",
+            'name = "x"\nboard = "big"\n',
+        ],
+    )
+    def test_a_file_that_is_not_a_level_is_rejected(self, tmp_path: Path, text: str) -> None:
+        path = tmp_path / "broken.toml"
+        path.write_text(text)
+
+        # tomllib's own parse error is a ValueError, so one type covers both
+        # a malformed file and a well-formed file holding the wrong things
+        with pytest.raises(ValueError):
+            load(path)
+
+
+class TestLoadAll:
+    def test_every_saved_level_is_listed(self, tmp_path: Path) -> None:
+        save(make_level("one"), tmp_path)
+        save(make_level("two"), tmp_path)
+
+        assert [level.name for level in load_all(tmp_path)] == ["one", "two"]
+
+    def test_levels_come_back_in_name_order(self, tmp_path: Path) -> None:
+        for name in ("zigzag", "Apple", "middle"):
+            save(make_level(name), tmp_path)
+
+        assert [level.name for level in load_all(tmp_path)] == ["Apple", "middle", "zigzag"]
+
+    def test_a_missing_directory_is_empty_rather_than_an_error(self, tmp_path: Path) -> None:
+        assert load_all(tmp_path / "never_created") == []
+
+    def test_a_broken_file_does_not_take_the_others_down(self, tmp_path: Path) -> None:
+        save(make_level("good"), tmp_path)
+        (tmp_path / "broken.toml").write_text("not a level at all = = =")
+
+        assert [level.name for level in load_all(tmp_path)] == ["good"]
+
+    def test_files_that_are_not_levels_are_ignored(self, tmp_path: Path) -> None:
+        save(make_level("good"), tmp_path)
+        (tmp_path / "notes.txt").write_text("nothing to do with levels")
+
+        assert len(load_all(tmp_path)) == 1
+
+
+class TestToLayout:
+    def test_a_complete_level_becomes_a_playable_layout(self) -> None:
+        layout = to_layout(make_level(), number=3)
+
+        assert layout is not None
+        assert layout.number == 3
+        assert layout.laser_cell == (0, 2)
+        assert layout.target_cell == (4, 0)
+        assert layout.mirrors == (MirrorSpec(cell=(4, 2), orientation=45.0),)
+
+    def test_the_level_name_is_shown_as_the_hint(self) -> None:
+        layout = to_layout(make_level("Tricky bounce"))
+
+        assert layout is not None
+        assert layout.hint == "Tricky bounce"
+
+    def test_a_level_without_a_laser_cannot_be_played(self) -> None:
+        assert to_layout(CustomLevel(name="x", target_cell=(4, 0))) is None
+
+    def test_a_level_without_a_target_cannot_be_played(self) -> None:
+        assert to_layout(CustomLevel(name="x", laser_cell=(0, 2))) is None
+
+    def test_a_level_with_no_mirrors_cannot_be_played(self) -> None:
+        # Nothing for the player to move, so there is no puzzle either way:
+        # aimed at the target it would be won on sight, aimed anywhere else it
+        # could never be won at all
+        no_mirrors = CustomLevel(name="x", laser_cell=(0, 2), target_cell=(4, 0))
+
+        assert to_layout(no_mirrors) is None
+
+    def test_a_level_built_on_another_board_size_cannot_be_played(self) -> None:
+        wrong_board = CustomLevel(
+            name="x", laser_cell=(0, 2), target_cell=(4, 0), cols=4, rows=4
+        )
+
+        assert to_layout(wrong_board) is None

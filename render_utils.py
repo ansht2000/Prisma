@@ -17,3 +17,13 @@ def render_text(
     text_surface = font.render(text, True, color)
     text_rect = text_surface.get_rect(center=center_position)
     return text_surface, text_rect
+
+
+# shortens text with a trailing ellipsis until it fits the given width
+def fit_text(font: pygame.font.Font, text: str, max_width: int) -> str:
+    if font.size(text)[0] <= max_width:
+        return text
+    ellipsis = "..."
+    while text and font.size(text + ellipsis)[0] > max_width:
+        text = text[:-1]
+    return text + ellipsis

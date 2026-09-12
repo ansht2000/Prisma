@@ -31,13 +31,24 @@ MENU_BUTTON_HOVER_FILL: tuple[int, int, int] = (64, 64, 64)
 MENU_BORDER_WIDTH: int = 2
 MENU_ENABLED_COLOR: tuple[int, int, int] = (255, 255, 255)
 MENU_DISABLED_COLOR: tuple[int, int, int] = (110, 110, 110)
+MENU_SPLIT_GAP: int = 12  # space between the halves of an entry that splits on hover
 
-# Level select screen
+# Level select screens
 LEVEL_SELECT_TITLE: str = "Level Select"
 LEVEL_BOX_SIZE: int = 80
 LEVEL_BOX_MARGIN: int = 30  # gap from the screen edges
 LEVEL_BOX_SPACING: int = 16
 LEVEL_BOX_FONT_SIZE: int = 40
+LEVEL_TITLE_GAP: int = 24  # gap between the heading and the first row of boxes
+
+# Custom level select screen. Boxes are labelled with the name the player
+# gave the level rather than a number, so they are wider and lettered smaller.
+CUSTOM_SELECT_TITLE: str = "Custom Levels"
+CUSTOM_BOX_WIDTH: int = 210
+CUSTOM_BOX_FONT_SIZE: int = 22
+CUSTOM_EMPTY_MESSAGE: str = "No custom levels yet -- build one in the Level Editor."
+CUSTOM_EMPTY_FONT_SIZE: int = 24
+CUSTOM_EMPTY_COLOR: tuple[int, int, int] = (150, 150, 150)
 
 # Levels
 BOARD_COLS: int = 8
@@ -49,6 +60,10 @@ BOARD_GRID_COLOR: tuple[int, int, int] = (70, 70, 70)
 LEVEL_MIRROR_LENGTH: int = 60
 LEVEL_LASER_LENGTH: int = 60
 LEVEL_HINT_FONT_SIZE: int = 20
+# Shown in place of a level's own hint when its beam is already on the target
+# but the player has not moved anything yet, so the board is not just sitting
+# there looking solved and silent
+LEVEL_UNTOUCHED_HINT: str = "Move a mirror to finish the level."
 LEVEL_HINT_COLOR: tuple[int, int, int] = (150, 150, 150)
 TARGET_SIZE: int = 46
 TARGET_COLOR: tuple[int, int, int] = (60, 200, 90)

@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Callable
 
 import pygame
 
@@ -43,3 +44,9 @@ class Scene(ABC):
     @property
     def quit_requested(self) -> bool:
         return self._quit_requested
+
+
+# Builds a scene, given the window surface. Used both to say which scene the
+# app boots into (see app.py) and to tell a scene where to hand control back
+# to when it is done (see level.py).
+SceneFactory = Callable[[pygame.Surface], Scene]

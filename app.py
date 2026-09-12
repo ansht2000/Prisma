@@ -1,12 +1,7 @@
-from typing import Callable
-
 import pygame
 
 from constants import *
-from scene import Scene
-
-# Builds the scene to start on, given the window surface
-SceneFactory = Callable[[pygame.Surface], Scene]
+from scene import Scene, SceneFactory
 
 
 def run(initial_scene: SceneFactory) -> None:

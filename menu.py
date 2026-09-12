@@ -20,6 +20,24 @@ class MenuOption:
     action: MenuAction
     # Listed but unclickable -- drawn dimmed, ignores clicks
     enabled: bool = True
+    # When set, this entry splits into these two side by side while the
+    # pointer is over it. Its own label and action still cover the gap left
+    # between them, so the entry is never a dead spot.
+    halves: "tuple[MenuOption, MenuOption] | None" = None
+
+
+@dataclass(frozen=True)
+class MenuEntry:
+    # One option as it is actually drawn: the button it collapses to, plus
+    # the buttons it splits into, each paired with the option it runs.
+    option: MenuOption
+    button: Button
+    halves: "tuple[tuple[MenuOption, Button], tuple[MenuOption, Button]] | None" = None
+
+    @property
+    def split(self) -> bool:
+        # Split only while hovered -- collapsed, the entry reads as one thing
+        return self.halves is not None and self.button.hovered
 
 
 def start_sandbox(menu: "MenuScene") -> None:
@@ -35,6 +53,13 @@ def open_level_select(menu: "MenuScene") -> None:
     from level_select import LevelSelectScene
 
     menu.go_to(LevelSelectScene(menu.screen))
+
+
+def open_custom_level_select(menu: "MenuScene") -> None:
+    # Local import for the same reason as start_sandbox above
+    from custom_level_select import CustomLevelSelectScene
+
+    menu.go_to(CustomLevelSelectScene(menu.screen))
 
 
 def open_level_editor(menu: "MenuScene") -> None:
@@ -59,7 +84,14 @@ def not_built_yet(menu: "MenuScene") -> None:
 # here and the screen lays itself out to match -- nothing else needs touching.
 MENU_OPTIONS: list[MenuOption] = [
     MenuOption("Sandbox", start_sandbox),
-    MenuOption("Level Select", open_level_select),
+    MenuOption(
+        "Level Select",
+        open_level_select,
+        halves=(
+            MenuOption("Custom", open_custom_level_select),
+            MenuOption("Default", open_level_select),
+        ),
+    ),
     MenuOption("Level Editor", open_level_editor),
     MenuOption("Settings", not_built_yet, enabled=False),
     MenuOption("Quit", quit_game),
@@ -75,9 +107,14 @@ class MenuScene(Scene):
         self.options: list[MenuOption] = MENU_OPTIONS if options is None else options
         self.title_font: pygame.font.Font = pygame.font.SysFont("Arial", MENU_TITLE_FONT_SIZE)
         self.button_font: pygame.font.Font = pygame.font.SysFont("Arial", MENU_BUTTON_FONT_SIZE)
-        self.buttons: list[Button] = []
+        self.entries: list[MenuEntry] = []
         self.title_center: tuple[float, float] = (0, 0)
         self._layout()
+
+    @property
+    def buttons(self) -> list[Button]:
+        # The entries as they sit collapsed, one per option
+        return [entry.button for entry in self.entries]
 
     def _layout(self) -> None:
         # Stack the buttons in a centered column, with the title above them
@@ -91,21 +128,53 @@ class MenuScene(Scene):
         block_top = (height - block_height) // 2 + MENU_TITLE_GAP // 2
         left = (width - MENU_BUTTON_WIDTH) // 2
 
-        self.buttons = [
-            Button(
-                option.label,
-                pygame.Rect(
-                    left,
-                    block_top + index * (MENU_BUTTON_HEIGHT + MENU_BUTTON_SPACING),
-                    MENU_BUTTON_WIDTH,
-                    MENU_BUTTON_HEIGHT,
-                ),
-                self.button_font,
-                option.enabled,
+        self.entries = []
+        for index, option in enumerate(self.options):
+            rect = pygame.Rect(
+                left,
+                block_top + index * (MENU_BUTTON_HEIGHT + MENU_BUTTON_SPACING),
+                MENU_BUTTON_WIDTH,
+                MENU_BUTTON_HEIGHT,
             )
-            for index, option in enumerate(self.options)
-        ]
+            self.entries.append(
+                MenuEntry(
+                    option,
+                    Button(option.label, rect, self.button_font, option.enabled),
+                    self._split_halves(option, rect),
+                )
+            )
+
         self.title_center = (width // 2, max(block_top - MENU_TITLE_GAP, MENU_TITLE_FONT_SIZE))
+
+    def _split_halves(
+        self, option: MenuOption, rect: pygame.Rect
+    ) -> "tuple[tuple[MenuOption, Button], tuple[MenuOption, Button]] | None":
+        # The two halves sit at either end of the entry's own rect, so the
+        # split takes up no more room than the single button it replaces
+        if option.halves is None:
+            return None
+        left_option, right_option = option.halves
+        half_width = (rect.width - MENU_SPLIT_GAP) // 2
+        return (
+            (
+                left_option,
+                Button(
+                    left_option.label,
+                    pygame.Rect(rect.left, rect.top, half_width, rect.height),
+                    self.button_font,
+                    left_option.enabled,
+                ),
+            ),
+            (
+                right_option,
+                Button(
+                    right_option.label,
+                    pygame.Rect(rect.right - half_width, rect.top, half_width, rect.height),
+                    self.button_font,
+                    right_option.enabled,
+                ),
+            ),
+        )
 
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.VIDEORESIZE:
@@ -114,15 +183,31 @@ class MenuScene(Scene):
             return
 
         if event.type == pygame.MOUSEMOTION:
-            for button in self.buttons:
-                button.hovered = button.contains(event.pos)
+            for entry in self.entries:
+                entry.button.hovered = entry.button.contains(event.pos)
+                if entry.halves is not None:
+                    for _, half_button in entry.halves:
+                        half_button.hovered = entry.button.hovered and half_button.contains(event.pos)
             return
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            for option, button in zip(self.options, self.buttons):
-                if button.enabled and button.contains(event.pos):
-                    option.action(self)
+            for entry in self.entries:
+                if not entry.button.contains(event.pos):
+                    continue
+                self._click(entry, event.pos)
+                return
+
+    def _click(self, entry: MenuEntry, pos: tuple[float, float]) -> None:
+        # A split entry hands the click to whichever half was hit. The gap
+        # between them belongs to neither, and falls through to the entry's
+        # own action -- clicking "Level Select" itself.
+        if entry.halves is not None:
+            for half_option, half_button in entry.halves:
+                if half_button.enabled and half_button.contains(pos):
+                    half_option.action(self)
                     return
+        if entry.button.enabled:
+            entry.option.action(self)
 
     def update(self, dt: float) -> None:
         # Nothing to advance over time; the menu is entirely event driven
@@ -136,5 +221,10 @@ class MenuScene(Scene):
         )
         self.screen.blit(title_text, title_rect)
 
-        for button in self.buttons:
-            button.draw(self.screen)
+        for entry in self.entries:
+            if entry.split:
+                assert entry.halves is not None  # what split means
+                for _, half_button in entry.halves:
+                    half_button.draw(self.screen)
+            else:
+                entry.button.draw(self.screen)
