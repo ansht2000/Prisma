@@ -61,3 +61,29 @@ OVERLAY_TITLE_GAP: int = 40
 OVERLAY_DIM_ALPHA: int = 190  # how strongly the overlay dims the scene behind it
 OVERLAY_PANEL_FILL: tuple[int, int, int] = (18, 18, 18)
 LEVEL_WIN_TITLE: str = "You win!"
+
+# Level editor
+EDITOR_SAVE_LABEL: str = "Save"
+EDITOR_SAVE_BUTTON_WIDTH: int = 160
+EDITOR_SAVE_BUTTON_HEIGHT: int = 48
+EDITOR_SAVE_FONT_SIZE: int = 26
+EDITOR_BOARD_GAP: int = 24  # vertical gap between the board and the save button
+EDITOR_BOARD_TOP_MIN: int = 20  # smallest gap between the board and the screen top
+EDITOR_STATUS_FONT_SIZE: int = 18
+EDITOR_STATUS_COLOR: tuple[int, int, int] = (150, 200, 150)
+EDITOR_STATUS_SECONDS: float = 4.0  # how long a "saved" message stays up
+
+# Name-entry dialog (used when saving a custom level)
+NAME_DIALOG_TITLE: str = "Level name"
+NAME_DIALOG_WIDTH: int = 420
+NAME_DIALOG_PADDING: int = 24
+NAME_DIALOG_FIELD_HEIGHT: int = 48
+NAME_DIALOG_BUTTON_WIDTH: int = 140
+NAME_DIALOG_BUTTON_HEIGHT: int = 44
+NAME_DIALOG_GAP: int = 18
+NAME_DIALOG_FONT_SIZE: int = 26
+NAME_DIALOG_LABEL_FONT_SIZE: int = 20
+NAME_DIALOG_MAX_CHARS: int = 32
+NAME_DIALOG_FILL: tuple[int, int, int] = (20, 20, 20)
+NAME_DIALOG_FIELD_FILL: tuple[int, int, int] = (10, 10, 10)
+NAME_DIALOG_LABEL_COLOR: tuple[int, int, int] = (180, 180, 180)

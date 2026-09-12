@@ -37,6 +37,13 @@ def open_level_select(menu: "MenuScene") -> None:
     menu.go_to(LevelSelectScene(menu.screen))
 
 
+def open_level_editor(menu: "MenuScene") -> None:
+    # Local import for the same reason as start_sandbox above
+    from level_editor import LevelEditorScene
+
+    menu.go_to(LevelEditorScene(menu.screen))
+
+
 def quit_game(menu: "MenuScene") -> None:
     menu.request_quit()
 
@@ -53,6 +60,7 @@ def not_built_yet(menu: "MenuScene") -> None:
 MENU_OPTIONS: list[MenuOption] = [
     MenuOption("Sandbox", start_sandbox),
     MenuOption("Level Select", open_level_select),
+    MenuOption("Level Editor", open_level_editor),
     MenuOption("Settings", not_built_yet, enabled=False),
     MenuOption("Quit", quit_game),
 ]

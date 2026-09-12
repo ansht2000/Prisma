@@ -8,6 +8,7 @@ once it is running.
 import pygame
 import pytest
 
+from level_editor import LevelEditorScene
 from level_select import LevelSelectScene
 from menu import MenuOption, MenuScene, MENU_OPTIONS
 from sandbox import SandboxScene
@@ -38,12 +39,18 @@ class TestDefaultOptions:
 
         assert [b.label for b in menu.buttons] == [o.label for o in MENU_OPTIONS]
 
-    def test_lists_the_four_expected_entries(self, screen: pygame.Surface) -> None:
+    def test_lists_the_five_expected_entries(self, screen: pygame.Surface) -> None:
         menu = MenuScene(screen)
 
         assert [b.label for b in menu.buttons] == [
-            "Sandbox", "Level Select", "Settings", "Quit"
+            "Sandbox", "Level Select", "Level Editor", "Settings", "Quit"
         ]
+
+    def test_the_editor_is_listed_below_level_select(self, screen: pygame.Surface) -> None:
+        menu = MenuScene(screen)
+        labels = [b.label for b in menu.buttons]
+
+        assert labels.index("Level Editor") == labels.index("Level Select") + 1
 
     def test_unbuilt_options_are_listed_but_disabled(self, screen: pygame.Surface) -> None:
         menu = MenuScene(screen)
@@ -75,6 +82,14 @@ class TestClickRouting:
         click_label(menu, "Level Select")
 
         assert isinstance(menu.next_scene, LevelSelectScene)
+        assert menu.quit_requested is False
+
+    def test_level_editor_opens_the_editor_screen(self, screen: pygame.Surface) -> None:
+        menu = MenuScene(screen)
+
+        click_label(menu, "Level Editor")
+
+        assert isinstance(menu.next_scene, LevelEditorScene)
         assert menu.quit_requested is False
 
     def test_disabled_options_do_nothing(self, screen: pygame.Surface) -> None:

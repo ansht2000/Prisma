@@ -3,5 +3,6 @@
 # ignore cached filed
 __pycache__/
 .mypy_cache/
-# ignore test stuff
-test/
+.pytest_cache
+# ignore local custom levels
+custom_levels/

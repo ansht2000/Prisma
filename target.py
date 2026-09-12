@@ -14,6 +14,13 @@ class Target:
         self.rect: pygame.Rect = pygame.Rect(0, 0, size, size)
         self.rect.center = (int(pos_x), int(pos_y))
 
+    def set_position(self, x: float, y: float) -> None:
+        # Same shape as Mirror.set_position/Laser.set_position, so anything
+        # that moves a piece around can treat all three alike
+        self.pos_x = x
+        self.pos_y = y
+        self.rect.center = (int(x), int(y))
+
     def is_hit_by(self, beam_path: list[pygame.Vector2]) -> bool:
         # True when any segment of the beam crosses this target. clipline()
         # returns the clipped segment, or an empty tuple when they never meet.
