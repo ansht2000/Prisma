@@ -22,7 +22,7 @@ from constants import (
 from custom_levels import CustomLevel, save, save_to
 from input_box import InputBox
 from level_editor import EDITOR_HINT, LevelEditorScene, Piece, PieceKind
-from levels import MirrorSpec
+from levels import MirrorSpec, WallSpec
 from menu import MenuScene
 from save_dialog import SaveDialog
 
@@ -659,3 +659,83 @@ class TestSavingBackToTheSameFile:
 
     def test_a_fresh_editor_explains_itself_instead(self, editor: LevelEditorScene) -> None:
         assert editor.hint() == EDITOR_HINT
+
+
+class TestWalls:
+    """Walls are placed like any other piece, and travel with the level."""
+
+    def test_the_table_offers_a_wall(self, editor: LevelEditorScene) -> None:
+        assert "wall" in editor.table.entry_rects
+
+    def test_a_wall_can_be_dragged_onto_the_board(self, editor: LevelEditorScene) -> None:
+        drag_from_table(editor, "wall", cell_pos(editor, 3, 2))
+
+        assert [(p.kind, p.cell) for p in editor.pieces] == [("wall", (3, 2))]
+
+    def test_a_new_wall_stands_upright(self, editor: LevelEditorScene) -> None:
+        # So one dropped in front of a laser blocks it straight away
+        drag_from_table(editor, "wall", cell_pos(editor, 3, 2))
+
+        assert editor.pieces[0].orientation == 90
+
+    def test_several_walls_can_be_placed(self, editor: LevelEditorScene) -> None:
+        drag_from_table(editor, "wall", cell_pos(editor, 1, 1))
+        drag_from_table(editor, "wall", cell_pos(editor, 2, 2))
+
+        assert len(editor.pieces) == 2
+
+    def test_clicking_a_wall_sets_its_angle(self, editor: LevelEditorScene) -> None:
+        drag_from_table(editor, "wall", cell_pos(editor, 3, 2))
+        editor.draw()
+        where = cell_pos(editor, 3, 2)
+        press(editor, where)
+        release(editor, where)
+
+        type_text(editor, "30")
+        key(editor, pygame.K_RETURN)
+
+        assert editor.pieces[0].orientation == 30
+
+    def test_walls_are_saved_with_the_level(
+        self, editor: LevelEditorScene, tmp_path: Path
+    ) -> None:
+        drag_from_table(editor, "laser", cell_pos(editor, 0, 2))
+        drag_from_table(editor, "target", cell_pos(editor, 7, 2))
+        drag_from_table(editor, "mirror", cell_pos(editor, 4, 4))
+        drag_from_table(editor, "wall", cell_pos(editor, 4, 2))
+
+        press(editor, editor.save_button.rect.center)
+        release(editor, editor.save_button.rect.center)
+        type_text(editor, "walled in")
+        key(editor, pygame.K_RETURN)
+
+        parsed = tomllib.loads((tmp_path / "walled_in.toml").read_text())
+        assert parsed["walls"] == [{"cell": [4, 2], "orientation": 90.0}]
+        assert parsed["mirrors"] == [{"cell": [4, 4], "orientation": 45.0}]
+
+    def test_walls_come_back_when_the_level_is_loaded(
+        self, editor: LevelEditorScene, tmp_path: Path
+    ) -> None:
+        save(
+            CustomLevel(
+                name="walled in",
+                laser_cell=(0, 2),
+                target_cell=(7, 2),
+                mirrors=(MirrorSpec(cell=(4, 4), orientation=45.0),),
+                walls=(WallSpec(cell=(4, 2), orientation=90.0),),
+            ),
+            tmp_path,
+        )
+
+        TestLoading().pick(editor, "walled in")
+
+        assert ("wall", (4, 2), 90.0) in {(p.kind, p.cell, p.orientation) for p in editor.pieces}
+
+    def test_a_wall_can_be_dragged_off_the_board_again(self, editor: LevelEditorScene) -> None:
+        drag_from_table(editor, "wall", cell_pos(editor, 3, 2))
+        editor.draw()
+
+        press(editor, cell_pos(editor, 3, 2))
+        release(editor, table_pos(editor, "wall"))
+
+        assert editor.pieces == []

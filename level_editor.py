@@ -24,7 +24,7 @@ from custom_levels import (
 )
 from input_box import InputBox
 from laser import Laser
-from levels import Cell, MirrorSpec
+from levels import Cell, MirrorSpec, WallSpec
 from load_dialog import LoadDialog
 from mirror import Mirror
 from render_utils import render_text
@@ -32,12 +32,13 @@ from save_dialog import SaveDialog
 from scene import Scene
 from table import EDITOR_ENTRIES, Table
 from target import Target
+from wall import Wall
 
-PieceKind = Literal["mirror", "laser", "target"]
-PieceObject = Mirror | Laser | Target
+PieceKind = Literal["mirror", "laser", "target", "wall"]
+PieceObject = Mirror | Laser | Target | Wall
 
 # The pieces the table offers, in the order it lists them
-PIECE_KINDS: tuple[PieceKind, ...] = ("mirror", "laser", "target")
+PIECE_KINDS: tuple[PieceKind, ...] = ("mirror", "laser", "target", "wall")
 
 EDITOR_HINT: str = "Drag pieces onto the board. Click a placed piece to set its angle."
 
@@ -60,9 +61,11 @@ class Piece:
         # Built at the origin and moved into place by set_position(), and out
         # of the sprite groups so an editor piece never joins a running game
         if kind == "mirror":
-            return Mirror(0, 0, screen, length=LEVEL_MIRROR_LENGTH, add_to_groups=False)
+            return Mirror(0, 0, screen, length=MIRROR_LENGTH, add_to_groups=False)
         if kind == "laser":
-            return Laser(0, 0, screen, length=LEVEL_LASER_LENGTH, add_to_groups=False)
+            return Laser(0, 0, screen, length=LASER_LENGTH, add_to_groups=False)
+        if kind == "wall":
+            return Wall(0, 0, screen, length=WALL_LENGTH, add_to_groups=False)
         return Target(0, 0, screen)
 
     @property
@@ -207,6 +210,11 @@ class LevelEditorScene(Scene):
                 for piece in self.pieces
                 if piece.kind == "mirror"
             ),
+            walls=tuple(
+                WallSpec(cell=_cell_of(piece), orientation=piece.orientation)
+                for piece in self.pieces
+                if piece.kind == "wall"
+            ),
         )
 
     def load_level(self, saved: SavedLevel) -> None:
@@ -231,6 +239,12 @@ class LevelEditorScene(Scene):
             mirror = Piece("mirror", self.screen)
             mirror.set_orientation(spec.orientation)
             self.place(mirror, spec.cell)
+        for wall_spec in level.walls:
+            if not self._fits(wall_spec.cell):
+                continue
+            wall = Piece("wall", self.screen)
+            wall.set_orientation(wall_spec.orientation)
+            self.place(wall, wall_spec.cell)
 
         self.editing_path = saved.path
         self.editing_name = level.name

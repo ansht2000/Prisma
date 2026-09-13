@@ -1,9 +1,14 @@
 import math
+from itertools import chain
 from typing import ClassVar
 
 import pygame
 
 from mirror import Mirror
+from wall import Wall
+
+# Anything the beam can run into: it bounces off a mirror and stops at a wall
+Obstacle = Mirror | Wall
 
 
 class LaserBeam(pygame.sprite.Sprite):
@@ -21,6 +26,7 @@ class LaserBeam(pygame.sprite.Sprite):
         max_reflections: int = 20,
         add_to_groups: bool = True,
         right_boundary: float | None = None,
+        walls: pygame.sprite.Group | None = None,
     ) -> None:
         if add_to_groups and hasattr(self, "containers"):
             super().__init__(*self.containers)
@@ -30,6 +36,11 @@ class LaserBeam(pygame.sprite.Sprite):
         self.start_pos: pygame.Vector2 = start_point
         self.orientation: float = orientation
         self.mirrors: pygame.sprite.Group = mirrors
+        # Obstacles that stop the beam rather than bending it. Optional so the
+        # sandbox, which has none, does not have to hand over an empty group.
+        self.walls: pygame.sprite.Group = (
+            pygame.sprite.Group() if walls is None else walls
+        )
         self.max_reflections: int = max_reflections
         # Where the beam stops on the right. Defaults to the sandbox's table
         # edge; a level with no table passes the full screen width instead.
@@ -45,42 +56,56 @@ class LaserBeam(pygame.sprite.Sprite):
         direction = pygame.Vector2(math.cos(angle_rad), -math.sin(angle_rad))  # Adjust for Pygame's coordinate system
 
         for _ in range(self.max_reflections):
-            closest_intersection_point: pygame.Vector2 | None = None
-            closest_mirror: Mirror | None = None
-            min_distance = float('inf')
+            hit = self.closest_hit(current_point, direction)
 
-            # For each mirror, check for intersection
-            for mirror in self.mirrors:
-                assert mirror.start_pos is not None and mirror.end_pos is not None  # draw() has run
-                intersection = self.ray_segment_intersect(current_point, direction, mirror.start_pos, mirror.end_pos)
-                if intersection:
-                    intersection_point, t = intersection
-                    distance = (intersection_point - current_point).length()
-                    if distance < min_distance:
-                        min_distance = distance
-                        closest_intersection_point = intersection_point
-                        closest_mirror = mirror
-
-            if closest_intersection_point:
-                # Found an intersection
-                self.beam_path.append(closest_intersection_point)
-
-                # Compute reflected direction
-                assert closest_mirror is not None
-                assert closest_mirror.start_pos is not None and closest_mirror.end_pos is not None
-                mirror_direction = (closest_mirror.end_pos - closest_mirror.start_pos).normalize()
-                mirror_normal = pygame.Vector2(-mirror_direction.y, mirror_direction.x)  # Perpendicular to mirror
-
-                # Compute reflection: R = D - 2 (D ⋅ N) N
-                dot_product = direction.dot(mirror_normal)
-                direction = direction - 2 * dot_product * mirror_normal
-
-                current_point = closest_intersection_point
-            else:
-                # No intersection, extend beam to boundary
+            if hit is None:
+                # Nothing in the way, extend beam to boundary
                 end_point = self.compute_beam_end(current_point, direction)
                 self.beam_path.append(end_point)
                 break
+
+            hit_point, obstacle = hit
+            self.beam_path.append(hit_point)
+
+            if isinstance(obstacle, Wall):
+                # A wall is the end of the line -- no reflection, no beam past it
+                break
+
+            # Compute reflected direction
+            assert obstacle.start_pos is not None and obstacle.end_pos is not None
+            mirror_direction = (obstacle.end_pos - obstacle.start_pos).normalize()
+            mirror_normal = pygame.Vector2(-mirror_direction.y, mirror_direction.x)  # Perpendicular to mirror
+
+            # Compute reflection: R = D - 2 (D ⋅ N) N
+            dot_product = direction.dot(mirror_normal)
+            direction = direction - 2 * dot_product * mirror_normal
+
+            current_point = hit_point
+
+    def closest_hit(
+        self, current_point: pygame.Vector2, direction: pygame.Vector2
+    ) -> tuple[pygame.Vector2, Obstacle] | None:
+        # The first mirror or wall the beam runs into from here, if any
+        closest_point: pygame.Vector2 | None = None
+        closest_obstacle: Obstacle | None = None
+        min_distance = float('inf')
+
+        for obstacle in chain(self.mirrors, self.walls):
+            assert obstacle.start_pos is not None and obstacle.end_pos is not None  # draw() has run
+            intersection = self.ray_segment_intersect(
+                current_point, direction, obstacle.start_pos, obstacle.end_pos
+            )
+            if intersection:
+                intersection_point, t = intersection
+                distance = (intersection_point - current_point).length()
+                if distance < min_distance:
+                    min_distance = distance
+                    closest_point = intersection_point
+                    closest_obstacle = obstacle
+
+        if closest_point is None or closest_obstacle is None:
+            return None
+        return (closest_point, closest_obstacle)
 
     def ray_segment_intersect(
         self,

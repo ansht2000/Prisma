@@ -10,6 +10,7 @@ from overlay import ChoiceOverlay, OverlayChoice
 from render_utils import render_text
 from scene import Scene, SceneFactory
 from target import Target
+from wall import Wall
 
 
 def _default_exit(screen: pygame.Surface) -> Scene:
@@ -50,7 +51,7 @@ class LevelScene(Scene):
         laser_x, laser_y = self.cell_center(*layout.laser_cell)
         self.laser: Laser = Laser(
             laser_x, laser_y, screen,
-            length=LEVEL_LASER_LENGTH,
+            length=LASER_LENGTH,
             orientation=layout.laser_orientation,
             add_to_groups=False,
         )
@@ -60,8 +61,19 @@ class LevelScene(Scene):
             self.mirrors.add(
                 Mirror(
                     mirror_x, mirror_y, screen,
-                    length=LEVEL_MIRROR_LENGTH,
+                    length=MIRROR_LENGTH,
                     orientation=spec.orientation,
+                    add_to_groups=False,
+                )
+            )
+        self.walls: pygame.sprite.Group = pygame.sprite.Group()
+        for wall_spec in layout.walls:
+            wall_x, wall_y = self.cell_center(*wall_spec.cell)
+            self.walls.add(
+                Wall(
+                    wall_x, wall_y, screen,
+                    length=WALL_LENGTH,
+                    orientation=wall_spec.orientation,
                     add_to_groups=False,
                 )
             )
@@ -167,6 +179,8 @@ class LevelScene(Scene):
         self.laser.draw()
         for mirror in self.mirrors:
             mirror.draw()
+        for wall in self.walls:
+            wall.draw()
 
         if self.beam is None:
             self.beam = LaserBeam(
@@ -176,6 +190,7 @@ class LevelScene(Scene):
                 self.mirrors,
                 add_to_groups=False,
                 right_boundary=self.screen.get_width(),
+                walls=self.walls,
             )
         else:
             self.beam.compute_beam_path()

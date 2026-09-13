@@ -3,13 +3,16 @@ from typing import ClassVar
 
 import pygame
 
-from constants import MIRROR_WIDTH, ROTATION_SPEED
+from constants import *
 
 
-class Mirror(pygame.sprite.Sprite):
-    # Declared, not assigned: main() sets this class attribute on startup, and
-    # the hasattr() check in __init__ relies on it being genuinely absent
-    # until then, so this must stay a bare annotation.
+class Wall(pygame.sprite.Sprite):
+    # An obstacle: the same line a mirror is, drawn thicker and grey, that a
+    # beam stops at instead of bouncing off (see laserbeam.py).
+
+    # Declared, not assigned: SandboxScene sets this class attribute, and the
+    # hasattr() check in __init__ relies on it being genuinely absent until
+    # then, so this must stay a bare annotation.
     containers: ClassVar[tuple[pygame.sprite.Group, ...]]
 
     def __init__(
@@ -17,8 +20,10 @@ class Mirror(pygame.sprite.Sprite):
         pos_x: float,
         pos_y: float,
         screen: pygame.Surface,
-        length: float = 100,
-        orientation: float = 45,
+        length: float = MIRROR_DEFAULT_SIZE,
+        # Upright by default: a laser fires to the right unless it is turned,
+        # so a wall dropped in its way blocks it rather than lying along it
+        orientation: float = 90,
         add_to_groups: bool = True,
     ) -> None:
         if add_to_groups and hasattr(self, "containers"):
@@ -31,9 +36,8 @@ class Mirror(pygame.sprite.Sprite):
         self.start_pos: pygame.Vector2 | None = None
         self.end_pos: pygame.Vector2 | None = None
         self.length: float = length
-        self.orientation: float = orientation
+        self.orientation: float = orientation % 360
         self.rect: pygame.Rect | None = None
-        self.dragging: bool = False
 
     def draw(self) -> pygame.Rect:
         radians = (math.pi * self.orientation) / 180
@@ -42,22 +46,22 @@ class Mirror(pygame.sprite.Sprite):
         start_pos = pygame.Vector2(start_x, start_y)
         end_pos = pygame.Vector2(
             start_x + self.length * math.cos(radians),
-            start_y - self.length * math.sin(radians)
+            start_y - self.length * math.sin(radians),
         )
         self.start_pos = start_pos
         self.end_pos = end_pos
 
-        # Create a larger hitbox around the line
-        padding = 10  # Padding around the line to create a larger hitbox
+        # A hitbox around the line, as Mirror does, so the editor can pick a
+        # wall up by clicking anywhere near it
+        padding = WALL_WIDTH
         self.rect = pygame.Rect(
             min(start_x, end_pos.x) - padding,
             min(start_y, end_pos.y) - padding,
             abs(start_x - end_pos.x) + 2 * padding,
-            abs(start_y - end_pos.y) + 2 * padding
+            abs(start_y - end_pos.y) + 2 * padding,
         )
 
-        # Draw the line and the hitbox for debugging
-        pygame.draw.line(self.screen, "white", start_pos, end_pos, MIRROR_WIDTH)
+        pygame.draw.line(self.screen, WALL_COLOR, start_pos, end_pos, WALL_WIDTH)
         return self.rect
 
     def set_position(self, x: float, y: float) -> None:

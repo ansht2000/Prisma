@@ -13,6 +13,14 @@ class MirrorSpec:
 
 
 @dataclass(frozen=True)
+class WallSpec:
+    cell: Cell
+    # Degrees the wall lies at, the same way a mirror's orientation reads:
+    # 90 is an upright bar, 0 one lying flat.
+    orientation: float
+
+
+@dataclass(frozen=True)
 class LevelLayout:
     number: int
     hint: str
@@ -20,6 +28,9 @@ class LevelLayout:
     laser_orientation: float  # 0 fires right, 90 fires up
     target_cell: Cell
     mirrors: tuple[MirrorSpec, ...]
+    # Obstacles the beam cannot get past. Defaulted, so a level that has none
+    # reads exactly as it did before walls existed.
+    walls: tuple[WallSpec, ...] = ()
 
 
 # Beam leaves the laser heading right along row 2 and has to end up on the

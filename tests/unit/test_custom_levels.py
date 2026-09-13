@@ -21,7 +21,7 @@ from custom_levels import (
     to_layout,
     to_toml,
 )
-from levels import MirrorSpec
+from levels import MirrorSpec, WallSpec
 
 pytestmark = pytest.mark.unit
 
@@ -226,6 +226,64 @@ class TestLoadAll:
         (tmp_path / "notes.txt").write_text("nothing to do with levels")
 
         assert len(load_all(tmp_path)) == 1
+
+
+class TestWalls:
+    def walled(self) -> CustomLevel:
+        return CustomLevel(
+            name="walled in",
+            laser_cell=(0, 2),
+            target_cell=(7, 2),
+            mirrors=(MirrorSpec(cell=(4, 4), orientation=45.0),),
+            walls=(WallSpec(cell=(4, 2), orientation=90.0),),
+        )
+
+    def test_walls_are_written_out(self) -> None:
+        assert parse(self.walled())["walls"] == [{"cell": [4, 2], "orientation": 90.0}]
+
+    def test_every_wall_is_kept(self) -> None:
+        level = CustomLevel(
+            name="many",
+            walls=(
+                WallSpec(cell=(1, 1), orientation=0.0),
+                WallSpec(cell=(2, 3), orientation=90.0),
+            ),
+        )
+
+        assert len(parse(level)["walls"]) == 2
+
+    def test_a_level_with_no_walls_writes_none(self) -> None:
+        assert "walls" not in parse(make_level())
+
+    def test_walls_read_back(self, tmp_path: Path) -> None:
+        path = save(self.walled(), tmp_path)
+
+        assert load(path) == self.walled()
+
+    def test_a_file_from_before_walls_existed_still_reads(self, tmp_path: Path) -> None:
+        path = tmp_path / "old.toml"
+        path.write_text('name = "old"\n[laser]\ncell = [0, 2]\n[target]\ncell = [4, 0]\n')
+
+        assert load(path).walls == ()
+
+    def test_a_wall_off_the_board_is_rejected(self, tmp_path: Path) -> None:
+        path = tmp_path / "broken.toml"
+        path.write_text('name = "x"\n[[walls]]\ncell = [99, 0]\n')
+
+        with pytest.raises(ValueError):
+            load(path)
+
+    def test_a_wall_with_no_angle_lies_flat(self, tmp_path: Path) -> None:
+        path = tmp_path / "bare.toml"
+        path.write_text('name = "x"\n[[walls]]\ncell = [1, 1]\n')
+
+        assert load(path).walls == (WallSpec(cell=(1, 1), orientation=0.0),)
+
+    def test_walls_reach_the_playable_layout(self) -> None:
+        layout = to_layout(self.walled())
+
+        assert layout is not None
+        assert layout.walls == (WallSpec(cell=(4, 2), orientation=90.0),)
 
 
 class TestSaveTo:

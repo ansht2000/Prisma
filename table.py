@@ -5,9 +5,10 @@ from render_utils import *
 from mirror import Mirror
 from laser import Laser
 from target import Target
+from wall import Wall
 from constants import *
 
-TableEntry = Mirror | Laser | Target
+TableEntry = Mirror | Laser | Target | Wall
 # Builds one sample piece for the table to show, at the given position. The
 # table only draws these -- the scene decides what a drag off one produces.
 EntryFactory = Callable[[float, float, pygame.Surface], TableEntry]
@@ -16,38 +17,41 @@ EntryFactory = Callable[[float, float, pygame.Surface], TableEntry]
 TableRow = tuple[str, EntryFactory, int]
 
 
-def _sandbox_mirror(x: float, y: float, screen: pygame.Surface) -> TableEntry:
-    return Mirror(x, y, screen, add_to_groups=False)
+# Samples are built at the size a piece is actually drawn at, and are shared
+# between the screens, so the same object looks the same wherever it is listed.
 
 
-def _sandbox_laser(x: float, y: float, screen: pygame.Surface) -> TableEntry:
-    return Laser(x, y, screen, add_to_groups=False)
+def _mirror(x: float, y: float, screen: pygame.Surface) -> TableEntry:
+    return Mirror(x, y, screen, length=MIRROR_LENGTH, add_to_groups=False)
 
 
-def _level_mirror(x: float, y: float, screen: pygame.Surface) -> TableEntry:
-    return Mirror(x, y, screen, length=LEVEL_MIRROR_LENGTH, add_to_groups=False)
+def _laser(x: float, y: float, screen: pygame.Surface) -> TableEntry:
+    return Laser(x, y, screen, length=LASER_LENGTH, add_to_groups=False)
 
 
-def _level_laser(x: float, y: float, screen: pygame.Surface) -> TableEntry:
-    return Laser(x, y, screen, length=LEVEL_LASER_LENGTH, add_to_groups=False)
-
-
-def _level_target(x: float, y: float, screen: pygame.Surface) -> TableEntry:
+def _target(x: float, y: float, screen: pygame.Surface) -> TableEntry:
     return Target(x, y, screen)
 
 
-# What the sandbox offers: full-size pieces to drag into free play.
+def _wall(x: float, y: float, screen: pygame.Surface) -> TableEntry:
+    return Wall(x, y, screen, length=WALL_LENGTH, add_to_groups=False)
+
+
+# What the sandbox offers: everything free play can do something with. It has
+# no target, since it has nothing to win.
 SANDBOX_ENTRIES: list[TableRow] = [
-    ("mirror", _sandbox_mirror, OBJECT_PADDING),
-    ("laser", _sandbox_laser, OBJECT_PADDING),
+    ("mirror", _mirror, OBJECT_PADDING),
+    ("laser", _laser, OBJECT_PADDING),
+    ("wall", _wall, OBJECT_PADDING),
 ]
 
-# What the level editor offers: board-sized pieces, so the sample looks like
-# what you get when you drop it, plus the target a level has to be aimed at.
+# What the level editor offers: the same pieces, drawn the same way, plus the
+# target a level has to be aimed at.
 EDITOR_ENTRIES: list[TableRow] = [
-    ("mirror", _level_mirror, OBJECT_PADDING),
-    ("laser", _level_laser, OBJECT_PADDING),
-    ("target", _level_target, OBJECT_PADDING),
+    ("mirror", _mirror, OBJECT_PADDING),
+    ("laser", _laser, OBJECT_PADDING),
+    ("target", _target, OBJECT_PADDING),
+    ("wall", _wall, OBJECT_PADDING),
 ]
 
 
@@ -117,17 +121,21 @@ class Table:
             obj_rect = obj.rect
             assert obj_rect is not None  # drawing a piece is what sizes its rect
 
+            # The name sits just under whatever was drawn, rather than a
+            # fixed distance below its middle: entries then take only the room
+            # their object needs, and every object fits on the one page
             font = pygame.font.SysFont("Arial", OBJECT_FONT_SIZE)
             obj_text, obj_text_rect = render_text(
                 font, name, (255, 255, 255),
-                (self.center_x, obj_y + 75)
+                (self.center_x, obj_rect.bottom + OBJECT_LABEL_GAP)
             )
             self.screen.blit(obj_text, obj_text_rect)
 
             # Merge the object's rects for easier handling
             combined_rect = obj_rect.union(obj_text_rect)
-            bottom_line_start = pygame.Vector2(self.width, combined_rect.bottom + 20)
-            bottom_line_end = pygame.Vector2(self.screen_width, combined_rect.bottom + 20)
+            divider_y = combined_rect.bottom + OBJECT_DIVIDER_GAP
+            bottom_line_start = pygame.Vector2(self.width, divider_y)
+            bottom_line_end = pygame.Vector2(self.screen_width, divider_y)
             bottom_line_rect = pygame.draw.line(
                 self.screen, "white",
                 bottom_line_start, bottom_line_end

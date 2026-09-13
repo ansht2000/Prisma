@@ -1,13 +1,27 @@
 # Constants for padding, distances, etc.
 PADDING_TOP: int = 30
 MARKING_OFFSET: int = 10
-OBJECT_PADDING: int = 60
+OBJECT_PADDING: int = 60  # gap above each object in the table
+OBJECT_LABEL_GAP: int = 22  # from an object's bottom to the middle of its name
+OBJECT_DIVIDER_GAP: int = 14  # from a name to the line closing off its entry
 TITLE_FONT_SIZE: int = 36
 OBJECT_FONT_SIZE: int = 24
 SCREEN_WIDTH: int = 1280
 SCREEN_HEIGHT: int = 720
 MIRROR_DEFAULT_SIZE: int = 100
 ROTATION_SPEED: int = 90
+
+# How big a piece is drawn, everywhere it appears: on a level board, in the
+# editor, in the sandbox, and as the sample in the objects table
+MIRROR_LENGTH: int = 60
+LASER_LENGTH: int = 60
+WALL_LENGTH: int = 60
+
+# Walls: drawn like a mirror, but thicker and grey, and the beam stops dead
+# at one instead of bouncing off it
+WALL_COLOR: tuple[int, int, int] = (130, 130, 130)
+WALL_WIDTH: int = 14
+MIRROR_WIDTH: int = 5
 
 # Degree-entry box
 CLICK_MOVE_THRESHOLD: int = 5  # px of travel below which a press/release counts as a click, not a drag
@@ -57,8 +71,6 @@ BOARD_CELL_SIZE: int = 90
 BOARD_LIGHT_CELL: tuple[int, int, int] = (34, 34, 34)
 BOARD_DARK_CELL: tuple[int, int, int] = (22, 22, 22)
 BOARD_GRID_COLOR: tuple[int, int, int] = (70, 70, 70)
-LEVEL_MIRROR_LENGTH: int = 60
-LEVEL_LASER_LENGTH: int = 60
 LEVEL_HINT_FONT_SIZE: int = 20
 # Shown in place of a level's own hint when its beam is already on the target
 # but the player has not moved anything yet, so the board is not just sitting

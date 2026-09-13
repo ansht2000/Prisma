@@ -10,7 +10,7 @@ import levels
 from level import LevelScene
 from level_select import LevelSelectScene
 from constants import LEVEL_UNTOUCHED_HINT
-from levels import LEVEL_ONE, LevelLayout, MirrorSpec
+from levels import LEVEL_ONE, LevelLayout, MirrorSpec, WallSpec
 from mirror import Mirror
 
 pytestmark = pytest.mark.unit
@@ -278,6 +278,85 @@ class TestWinOverlay:
         click(level, mirror.rect.center)
 
         assert level.input_box is None
+
+
+class TestWalls:
+    """A level can hold walls, which the beam stops at."""
+
+    def walled(self, walls: tuple[WallSpec, ...]) -> LevelLayout:
+        # Laser fires right along row 2 at a target on the far side of it
+        return LevelLayout(
+            number=1,
+            hint="",
+            laser_cell=(0, 2),
+            laser_orientation=0,
+            target_cell=(7, 2),
+            mirrors=(MirrorSpec(cell=(4, 4), orientation=90),),
+            walls=walls,
+        )
+
+    def test_a_level_without_walls_has_none(self, level: LevelScene) -> None:
+        assert list(level.walls) == []
+
+    def test_a_wall_in_the_way_keeps_the_beam_off_the_target(
+        self, screen: pygame.Surface
+    ) -> None:
+        scene = LevelScene(screen, self.walled((WallSpec(cell=(4, 2), orientation=90),)))
+
+        run_frame(scene)
+
+        assert scene.beam is not None
+        assert scene.target.is_hit_by(scene.beam.beam_path) is False
+        assert scene.won is False
+
+    def test_the_same_level_without_the_wall_is_a_straight_shot(
+        self, screen: pygame.Surface
+    ) -> None:
+        scene = LevelScene(screen, self.walled(()))
+
+        run_frame(scene)
+
+        assert scene.beam is not None
+        assert scene.target.is_hit_by(scene.beam.beam_path) is True
+
+    def test_the_beam_ends_at_the_wall(self, screen: pygame.Surface) -> None:
+        scene = LevelScene(screen, self.walled((WallSpec(cell=(4, 2), orientation=90),)))
+
+        run_frame(scene)
+
+        assert scene.beam is not None
+        wall_x, _ = scene.cell_center(4, 2)
+        assert scene.beam.beam_path[-1].x == pytest.approx(wall_x)
+
+    def test_every_wall_in_the_layout_is_built(self, screen: pygame.Surface) -> None:
+        walls = (
+            WallSpec(cell=(2, 2), orientation=90),
+            WallSpec(cell=(5, 1), orientation=0),
+        )
+
+        scene = LevelScene(screen, self.walled(walls))
+
+        assert len(scene.walls) == 2
+
+    def test_the_beam_is_told_about_the_walls(self, screen: pygame.Surface) -> None:
+        scene = LevelScene(screen, self.walled((WallSpec(cell=(4, 2), orientation=90),)))
+
+        run_frame(scene)
+
+        assert scene.beam is not None
+        assert scene.beam.walls is scene.walls
+
+    def test_walls_do_not_turn_when_the_player_rotates_a_mirror(
+        self, screen: pygame.Surface
+    ) -> None:
+        """Only mirrors are the player's to move."""
+        scene = LevelScene(screen, self.walled((WallSpec(cell=(4, 2), orientation=90),)))
+        run_frame(scene)
+        wall = next(iter(scene.walls))
+
+        click(scene, (wall.rect.centerx, wall.rect.centery))
+
+        assert scene.input_box is None
 
 
 class TestControls:

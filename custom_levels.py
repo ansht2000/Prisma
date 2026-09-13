@@ -22,13 +22,17 @@ A saved level looks like this:
     [[mirrors]]
     cell = [4, 2]
     orientation = 90.0
+
+    [[walls]]
+    cell = [3, 1]
+    orientation = 0.0
 """
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
 from constants import BOARD_COLS, BOARD_ROWS
-from levels import Cell, LevelLayout, MirrorSpec
+from levels import Cell, LevelLayout, MirrorSpec, WallSpec
 
 # Levels the editor saves live here, next to the game rather than next to
 # whatever directory the game happened to be started from.
@@ -49,6 +53,7 @@ class CustomLevel:
     laser_orientation: float = 0.0
     target_cell: Cell | None = None
     mirrors: tuple[MirrorSpec, ...] = ()
+    walls: tuple[WallSpec, ...] = ()
     cols: int = BOARD_COLS
     rows: int = BOARD_ROWS
 
@@ -115,6 +120,14 @@ def to_toml(level: CustomLevel) -> str:
             f"orientation = {_toml_float(mirror.orientation)}",
         ]
 
+    for wall in level.walls:
+        lines += [
+            "",
+            "[[walls]]",
+            f"cell = {_toml_cell(wall.cell)}",
+            f"orientation = {_toml_float(wall.orientation)}",
+        ]
+
     return "\n".join(lines) + "\n"
 
 
@@ -176,6 +189,18 @@ def load(path: Path) -> CustomLevel:
             )
         )
 
+    walls: list[WallSpec] = []
+    for index, entry in enumerate(parsed.get("walls", [])):
+        wall = _table(entry, f"walls[{index}]")
+        walls.append(
+            WallSpec(
+                cell=_cell(wall.get("cell"), f"walls[{index}].cell", cols, rows),
+                orientation=_float(
+                    wall.get("orientation", 0.0), f"walls[{index}].orientation"
+                ),
+            )
+        )
+
     # A file with no name of its own is known by the file it lives in
     name = parsed.get("name", path.stem)
     if not isinstance(name, str):
@@ -187,6 +212,7 @@ def load(path: Path) -> CustomLevel:
         laser_orientation=laser_orientation,
         target_cell=target_cell,
         mirrors=tuple(mirrors),
+        walls=tuple(walls),
         cols=cols,
         rows=rows,
     )
@@ -236,6 +262,7 @@ def to_layout(level: CustomLevel, number: int = 1) -> LevelLayout | None:
         laser_orientation=level.laser_orientation,
         target_cell=level.target_cell,
         mirrors=level.mirrors,
+        walls=level.walls,
     )
 
 
