@@ -11,10 +11,13 @@ from custom_levels import (
     CustomLevel,
     FALLBACK_FILE_STEM,
     file_stem_for,
+    SavedLevel,
     load,
     load_all,
+    load_all_saved,
     path_for,
     save,
+    save_to,
     to_layout,
     to_toml,
 )
@@ -223,6 +226,52 @@ class TestLoadAll:
         (tmp_path / "notes.txt").write_text("nothing to do with levels")
 
         assert len(load_all(tmp_path)) == 1
+
+
+class TestSaveTo:
+    def test_it_writes_the_file_it_is_given(self, tmp_path: Path) -> None:
+        path = tmp_path / "some_other_name.toml"
+
+        save_to(make_level(), path)
+
+        assert tomllib.loads(path.read_text())["name"] == "Tricky bounce"
+
+    def test_it_ignores_what_the_name_would_have_called_for(self, tmp_path: Path) -> None:
+        save_to(make_level(), tmp_path / "kept.toml")
+
+        assert [p.name for p in tmp_path.iterdir()] == ["kept.toml"]
+
+    def test_a_missing_directory_is_created(self, tmp_path: Path) -> None:
+        path = tmp_path / "custom_levels" / "deep.toml"
+
+        save_to(make_level(), path)
+
+        assert path.exists()
+
+
+class TestLoadAllSaved:
+    def test_each_level_comes_back_with_its_file(self, tmp_path: Path) -> None:
+        written = save(make_level("one"), tmp_path)
+
+        assert load_all_saved(tmp_path) == [SavedLevel(written, make_level("one"))]
+
+    def test_the_file_is_the_real_one_not_one_guessed_from_the_name(
+        self, tmp_path: Path
+    ) -> None:
+        # A file whose name has drifted from the level inside it still reports
+        # where it actually lives, which is what saving it again writes to
+        save_to(make_level("Tricky bounce"), tmp_path / "renamed_by_hand.toml")
+
+        assert load_all_saved(tmp_path)[0].path == tmp_path / "renamed_by_hand.toml"
+
+    def test_it_agrees_with_load_all(self, tmp_path: Path) -> None:
+        for name in ("zigzag", "Apple"):
+            save(make_level(name), tmp_path)
+
+        assert [entry.level for entry in load_all_saved(tmp_path)] == load_all(tmp_path)
+
+    def test_a_missing_directory_is_empty(self, tmp_path: Path) -> None:
+        assert load_all_saved(tmp_path / "never_created") == []
 
 
 class TestToLayout:

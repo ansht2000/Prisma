@@ -11,9 +11,18 @@ from pathlib import Path
 import pygame
 import pytest
 
-from constants import BOARD_CELL_SIZE, BOARD_COLS, BOARD_ROWS, CLICK_MOVE_THRESHOLD
+from constants import (
+    BOARD_CELL_SIZE,
+    BOARD_COLS,
+    BOARD_ROWS,
+    CLICK_MOVE_THRESHOLD,
+    EDITOR_NO_LEVELS_MESSAGE,
+    EDITOR_SAVE_BUTTON_WIDTH,
+)
+from custom_levels import CustomLevel, save, save_to
 from input_box import InputBox
-from level_editor import LevelEditorScene, Piece, PieceKind
+from level_editor import EDITOR_HINT, LevelEditorScene, Piece, PieceKind
+from levels import MirrorSpec
 from menu import MenuScene
 from save_dialog import SaveDialog
 
@@ -67,13 +76,24 @@ class TestLayout:
     def test_the_board_stays_clear_of_the_table(self, editor: LevelEditorScene) -> None:
         assert editor.board_rect.right <= editor.table.width
 
-    def test_the_save_button_sits_under_the_board(self, editor: LevelEditorScene) -> None:
+    def test_the_save_and_load_buttons_sit_under_the_board(
+        self, editor: LevelEditorScene
+    ) -> None:
         assert editor.save_button.rect.top >= editor.board_rect.bottom
-        assert editor.save_button.rect.centerx == editor.board_rect.centerx
+        assert editor.load_button.rect.top == editor.save_button.rect.top
+
+    def test_load_sits_next_to_save(self, editor: LevelEditorScene) -> None:
+        gap = editor.load_button.rect.left - editor.save_button.rect.right
+
+        assert 0 < gap < EDITOR_SAVE_BUTTON_WIDTH
+        # and the pair as a whole is centered under the board
+        middle = (editor.save_button.rect.left + editor.load_button.rect.right) // 2
+        assert abs(middle - editor.board_rect.centerx) <= 1
 
     def test_everything_stays_on_screen(self, editor: LevelEditorScene, screen: pygame.Surface) -> None:
         assert editor.board_rect.top >= 0
         assert editor.save_button.rect.bottom <= screen.get_height()
+        assert editor.load_button.rect.right <= editor.table.width
 
     def test_the_table_offers_a_target_as_well(self, editor: LevelEditorScene) -> None:
         assert set(editor.table.entry_rects) >= {"mirror", "laser", "target"}
@@ -430,3 +450,212 @@ class TestNavigation:
         editor.draw()
 
         assert len(editor.pieces) == BOARD_COLS * BOARD_ROWS
+
+
+class TestLoading:
+    """Opening a level that was saved before, editing it, and saving it back
+    to the file it came from."""
+
+    def a_level(self, name: str = "Tricky bounce") -> CustomLevel:
+        return CustomLevel(
+            name=name,
+            laser_cell=(0, 2),
+            laser_orientation=0.0,
+            target_cell=(4, 0),
+            mirrors=(MirrorSpec(cell=(4, 2), orientation=135.0),),
+        )
+
+    def open_picker(self, editor: LevelEditorScene) -> None:
+        press(editor, editor.load_button.rect.center)
+        release(editor, editor.load_button.rect.center)
+
+    def pick(self, editor: LevelEditorScene, label: str) -> None:
+        self.open_picker(editor)
+        assert editor.picker is not None
+        for button in editor.picker.buttons:
+            if button.label == label:
+                press(editor, button.rect.center)
+                return
+        raise AssertionError(f"no level offered called {label!r}")
+
+    def test_the_load_button_opens_the_list_of_saved_levels(
+        self, editor: LevelEditorScene, tmp_path: Path
+    ) -> None:
+        save(self.a_level("one"), tmp_path)
+        save(self.a_level("two"), tmp_path)
+
+        self.open_picker(editor)
+
+        assert editor.picker is not None
+        assert [b.label for b in editor.picker.buttons] == ["one", "two"]
+
+    def test_loading_with_nothing_saved_says_so(
+        self, editor: LevelEditorScene, tmp_path: Path
+    ) -> None:
+        self.open_picker(editor)
+
+        assert editor.picker is None
+        assert editor.status == EDITOR_NO_LEVELS_MESSAGE
+
+    def test_picking_a_level_puts_it_on_the_board(
+        self, editor: LevelEditorScene, tmp_path: Path
+    ) -> None:
+        save(self.a_level(), tmp_path)
+
+        self.pick(editor, "Tricky bounce")
+
+        assert editor.picker is None
+        placed = {(p.kind, p.cell, p.orientation) for p in editor.pieces}
+        assert placed == {
+            ("laser", (0, 2), 0.0),
+            ("target", (4, 0), 0.0),
+            ("mirror", (4, 2), 135.0),
+        }
+
+    def test_loading_replaces_whatever_was_on_the_board(
+        self, editor: LevelEditorScene, tmp_path: Path
+    ) -> None:
+        save(self.a_level(), tmp_path)
+        drag_from_table(editor, "mirror", cell_pos(editor, 7, 5))
+        drag_from_table(editor, "mirror", cell_pos(editor, 6, 5))
+
+        self.pick(editor, "Tricky bounce")
+
+        assert {p.cell for p in editor.pieces} == {(0, 2), (4, 0), (4, 2)}
+
+    def test_backing_out_leaves_the_board_alone(
+        self, editor: LevelEditorScene, tmp_path: Path
+    ) -> None:
+        save(self.a_level(), tmp_path)
+        drag_from_table(editor, "mirror", cell_pos(editor, 7, 5))
+        self.open_picker(editor)
+        assert editor.picker is not None
+
+        press(editor, editor.picker.cancel_button.rect.center)
+
+        assert editor.picker is None
+        assert [p.cell for p in editor.pieces] == [(7, 5)]
+        assert editor.editing_path is None
+
+    def test_escape_closes_the_list_without_leaving_the_editor(
+        self, editor: LevelEditorScene, tmp_path: Path
+    ) -> None:
+        save(self.a_level(), tmp_path)
+        self.open_picker(editor)
+
+        key(editor, pygame.K_ESCAPE)
+
+        assert editor.picker is None
+        assert editor.next_scene is None
+
+    def test_pieces_that_do_not_fit_this_board_are_left_out(
+        self, editor: LevelEditorScene, tmp_path: Path
+    ) -> None:
+        # A hand-written file built on a wider board than the game draws
+        save(
+            CustomLevel(
+                name="too wide",
+                laser_cell=(0, 2),
+                target_cell=(11, 1),
+                mirrors=(MirrorSpec(cell=(4, 2), orientation=45.0),),
+                cols=12,
+                rows=6,
+            ),
+            tmp_path,
+        )
+
+        self.pick(editor, "too wide")
+
+        assert {p.cell for p in editor.pieces} == {(0, 2), (4, 2)}
+
+
+class TestSavingBackToTheSameFile:
+    def build_and_save(self, editor: LevelEditorScene, name: str) -> None:
+        drag_from_table(editor, "laser", cell_pos(editor, 0, 2))
+        drag_from_table(editor, "target", cell_pos(editor, 4, 0))
+        drag_from_table(editor, "mirror", cell_pos(editor, 4, 2))
+        press(editor, editor.save_button.rect.center)
+        release(editor, editor.save_button.rect.center)
+        type_text(editor, name)
+        key(editor, pygame.K_RETURN)
+
+    def test_saving_an_edited_level_writes_the_file_it_came_from(
+        self, editor: LevelEditorScene, tmp_path: Path
+    ) -> None:
+        loader = TestLoading()
+        save(loader.a_level(), tmp_path)
+        loader.pick(editor, "Tricky bounce")
+        editor.draw()
+
+        # Move the target, then save
+        press(editor, cell_pos(editor, 4, 0))
+        release(editor, cell_pos(editor, 6, 0))
+        press(editor, editor.save_button.rect.center)
+        release(editor, editor.save_button.rect.center)
+
+        assert editor.dialog is None, "an already-saved level should not ask for a name again"
+        parsed = tomllib.loads((tmp_path / "Tricky_bounce.toml").read_text())
+        assert parsed["target"]["cell"] == [6, 0]
+        assert parsed["name"] == "Tricky bounce"
+
+    def test_it_does_not_leave_a_second_file_behind(
+        self, editor: LevelEditorScene, tmp_path: Path
+    ) -> None:
+        loader = TestLoading()
+        save(loader.a_level(), tmp_path)
+        loader.pick(editor, "Tricky bounce")
+
+        press(editor, editor.save_button.rect.center)
+        release(editor, editor.save_button.rect.center)
+
+        assert [p.name for p in tmp_path.iterdir()] == ["Tricky_bounce.toml"]
+
+    def test_a_file_whose_name_does_not_match_its_level_is_still_the_one_written(
+        self, editor: LevelEditorScene, tmp_path: Path
+    ) -> None:
+        # Saving by name alone would write "Tricky_bounce.toml" instead
+        odd = tmp_path / "renamed_by_hand.toml"
+        save_to(TestLoading().a_level(), odd)
+
+        TestLoading().pick(editor, "Tricky bounce")
+        press(editor, editor.save_button.rect.center)
+        release(editor, editor.save_button.rect.center)
+
+        assert [p.name for p in tmp_path.iterdir()] == ["renamed_by_hand.toml"]
+
+    def test_a_new_level_is_still_asked_to_be_named(
+        self, editor: LevelEditorScene, tmp_path: Path
+    ) -> None:
+        press(editor, editor.save_button.rect.center)
+        release(editor, editor.save_button.rect.center)
+
+        assert editor.dialog is not None
+
+    def test_saving_a_second_time_goes_back_to_the_same_file(
+        self, editor: LevelEditorScene, tmp_path: Path
+    ) -> None:
+        self.build_and_save(editor, "my level")
+        editor.draw()
+
+        press(editor, cell_pos(editor, 4, 2))
+        release(editor, cell_pos(editor, 5, 3))
+        press(editor, editor.save_button.rect.center)
+        release(editor, editor.save_button.rect.center)
+
+        assert editor.dialog is None
+        assert [p.name for p in tmp_path.iterdir()] == ["my_level.toml"]
+        parsed = tomllib.loads((tmp_path / "my_level.toml").read_text())
+        assert parsed["mirrors"] == [{"cell": [5, 3], "orientation": 45.0}]
+
+    def test_the_footer_names_the_file_being_edited(
+        self, editor: LevelEditorScene, tmp_path: Path
+    ) -> None:
+        save(TestLoading().a_level(), tmp_path)
+
+        TestLoading().pick(editor, "Tricky bounce")
+
+        assert "Tricky_bounce.toml" in editor.hint()
+        assert "Tricky bounce" in editor.hint()
+
+    def test_a_fresh_editor_explains_itself_instead(self, editor: LevelEditorScene) -> None:
+        assert editor.hint() == EDITOR_HINT

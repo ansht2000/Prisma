@@ -53,6 +53,14 @@ class CustomLevel:
     rows: int = BOARD_ROWS
 
 
+@dataclass(frozen=True)
+class SavedLevel:
+    # A level together with the file it came from, so that editing one and
+    # saving it again can go back to the same file
+    path: Path
+    level: CustomLevel
+
+
 def file_stem_for(name: str) -> str:
     """The file name (without extension) a typed level name is saved under.
 
@@ -111,13 +119,21 @@ def to_toml(level: CustomLevel) -> str:
 
 
 def save(level: CustomLevel, directory: Path = CUSTOM_LEVELS_DIR) -> Path:
-    """Writes the level out and returns the file it landed in.
+    """Writes the level to the file its name calls for, and returns it.
 
     Creates the directory on first use, and overwrites a level saved under
     the same name before.
     """
-    directory.mkdir(parents=True, exist_ok=True)
-    path = path_for(level.name, directory)
+    return save_to(level, path_for(level.name, directory))
+
+
+def save_to(level: CustomLevel, path: Path) -> Path:
+    """Writes the level to one particular file, whatever it is called.
+
+    This is what editing an existing level saves through: the file it was
+    loaded from, rather than whatever its name would otherwise pick.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(to_toml(level), encoding="utf-8")
     return path
 
@@ -176,8 +192,8 @@ def load(path: Path) -> CustomLevel:
     )
 
 
-def load_all(directory: Path = CUSTOM_LEVELS_DIR) -> list[CustomLevel]:
-    """Every level saved in the directory, in name order.
+def load_all_saved(directory: Path = CUSTOM_LEVELS_DIR) -> list[SavedLevel]:
+    """Every level saved in the directory, in name order, with its file.
 
     A file that cannot be read -- hand-edited into nonsense, or not a level at
     all -- is left out rather than taking the whole list down with it.
@@ -185,13 +201,18 @@ def load_all(directory: Path = CUSTOM_LEVELS_DIR) -> list[CustomLevel]:
     if not directory.is_dir():
         return []
 
-    levels: list[CustomLevel] = []
+    saved: list[SavedLevel] = []
     for path in sorted(directory.glob("*" + FILE_EXTENSION)):
         try:
-            levels.append(load(path))
+            saved.append(SavedLevel(path, load(path)))
         except (OSError, ValueError):
             continue
-    return sorted(levels, key=lambda level: level.name.lower())
+    return sorted(saved, key=lambda entry: entry.level.name.lower())
+
+
+def load_all(directory: Path = CUSTOM_LEVELS_DIR) -> list[CustomLevel]:
+    """Every level saved in the directory, in name order."""
+    return [entry.level for entry in load_all_saved(directory)]
 
 
 def to_layout(level: CustomLevel, number: int = 1) -> LevelLayout | None:

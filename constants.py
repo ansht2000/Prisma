@@ -79,6 +79,8 @@ LEVEL_WIN_TITLE: str = "You win!"
 
 # Level editor
 EDITOR_SAVE_LABEL: str = "Save"
+EDITOR_LOAD_LABEL: str = "Load"
+EDITOR_BUTTON_GAP: int = 16  # space between the save and load buttons
 EDITOR_SAVE_BUTTON_WIDTH: int = 160
 EDITOR_SAVE_BUTTON_HEIGHT: int = 48
 EDITOR_SAVE_FONT_SIZE: int = 26
@@ -87,6 +89,14 @@ EDITOR_BOARD_TOP_MIN: int = 20  # smallest gap between the board and the screen 
 EDITOR_STATUS_FONT_SIZE: int = 18
 EDITOR_STATUS_COLOR: tuple[int, int, int] = (150, 200, 150)
 EDITOR_STATUS_SECONDS: float = 4.0  # how long a "saved" message stays up
+EDITOR_NO_LEVELS_MESSAGE: str = "No custom levels saved yet."
+# Shown while the editor is working on a level that already has a file, so it
+# is clear that saving updates that file rather than asking for a new name
+EDITOR_EDITING_HINT: str = 'Editing "{name}" -- Save writes back to {file}'
+
+# Load dialog (the list of levels the editor can open)
+LOAD_DIALOG_TITLE: str = "Load Level"
+LOAD_DIALOG_CANCEL_LABEL: str = "Cancel"
 
 # Name-entry dialog (used when saving a custom level)
 NAME_DIALOG_TITLE: str = "Level name"

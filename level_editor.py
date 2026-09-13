@@ -14,10 +14,18 @@ import pygame
 
 from button import Button
 from constants import *
-from custom_levels import CUSTOM_LEVELS_DIR, CustomLevel, save
+from custom_levels import (
+    CUSTOM_LEVELS_DIR,
+    CustomLevel,
+    SavedLevel,
+    load_all_saved,
+    save,
+    save_to,
+)
 from input_box import InputBox
 from laser import Laser
 from levels import Cell, MirrorSpec
+from load_dialog import LoadDialog
 from mirror import Mirror
 from render_utils import render_text
 from save_dialog import SaveDialog
@@ -95,6 +103,12 @@ class LevelEditorScene(Scene):
 
         self.input_box: InputBox | None = None
         self.dialog: SaveDialog | None = None
+        self.picker: LoadDialog | None = None
+        # The file this board came from, once it has one -- loaded from it, or
+        # saved to it under a name that was asked for once. Saving goes back
+        # there rather than asking again.
+        self.editing_path: Path | None = None
+        self.editing_name: str = ""
         self.status: str = ""
         self.status_timer: float = 0
 
@@ -104,6 +118,9 @@ class LevelEditorScene(Scene):
         self.board_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
         self.save_button: Button = Button(
             EDITOR_SAVE_LABEL, pygame.Rect(0, 0, 0, 0), self.button_font
+        )
+        self.load_button: Button = Button(
+            EDITOR_LOAD_LABEL, pygame.Rect(0, 0, 0, 0), self.button_font
         )
         self._layout()
 
@@ -117,9 +134,16 @@ class LevelEditorScene(Scene):
         left = max((int(self.table.width) - board_width) // 2, 0)
 
         self.board_rect = pygame.Rect(left, top, board_width, board_height)
+        # Save and Load sit side by side, the pair centered under the board
+        buttons_width = 2 * EDITOR_SAVE_BUTTON_WIDTH + EDITOR_BUTTON_GAP
+        buttons_left = self.board_rect.centerx - buttons_width // 2
+        buttons_top = self.board_rect.bottom + EDITOR_BOARD_GAP
         self.save_button.rect = pygame.Rect(
-            self.board_rect.centerx - EDITOR_SAVE_BUTTON_WIDTH // 2,
-            self.board_rect.bottom + EDITOR_BOARD_GAP,
+            buttons_left, buttons_top, EDITOR_SAVE_BUTTON_WIDTH, EDITOR_SAVE_BUTTON_HEIGHT
+        )
+        self.load_button.rect = pygame.Rect(
+            buttons_left + EDITOR_SAVE_BUTTON_WIDTH + EDITOR_BUTTON_GAP,
+            buttons_top,
             EDITOR_SAVE_BUTTON_WIDTH,
             EDITOR_SAVE_BUTTON_HEIGHT,
         )
@@ -185,15 +209,70 @@ class LevelEditorScene(Scene):
             ),
         )
 
-    def save_level(self, name: str) -> Path | None:
-        # Returns where the level landed, or None if it could not be written
+    def load_level(self, saved: SavedLevel) -> None:
+        # Replaces the board with the saved level, and remembers the file it
+        # came from so that saving goes back to it
+        level = saved.level
+        self.pieces = []
+        self.held = None
+        self.press_pos = None
+        self.click_target = None
+        self.input_box = None
+
+        if level.laser_cell is not None and self._fits(level.laser_cell):
+            laser = Piece("laser", self.screen)
+            laser.set_orientation(level.laser_orientation)
+            self.place(laser, level.laser_cell)
+        if level.target_cell is not None and self._fits(level.target_cell):
+            self.place(Piece("target", self.screen), level.target_cell)
+        for spec in level.mirrors:
+            if not self._fits(spec.cell):
+                continue
+            mirror = Piece("mirror", self.screen)
+            mirror.set_orientation(spec.orientation)
+            self.place(mirror, spec.cell)
+
+        self.editing_path = saved.path
+        self.editing_name = level.name
+        self._show_status(f"Loaded {level.name}")
+
+    @staticmethod
+    def _fits(cell: Cell) -> bool:
+        # A file built on a bigger board than this one can hold pieces with
+        # nowhere to go here; they are left out rather than drawn off the grid
+        return 0 <= cell[0] < BOARD_COLS and 0 <= cell[1] < BOARD_ROWS
+
+    def save_level(self, name: str, path: Path | None = None) -> Path | None:
+        # Saves to `path` when there is one -- the file this level was loaded
+        # from or last saved to -- and otherwise to whatever its name calls
+        # for. Returns where it landed, or None if it could not be written.
         try:
-            path = save(self.to_level(name), self.directory)
+            level = self.to_level(name)
+            saved = save_to(level, path) if path is not None else save(level, self.directory)
         except OSError as error:
             self._show_status(f"Could not save: {error.strerror or error}")
             return None
-        self._show_status(f"Saved {path.name}")
-        return path
+        # From here on this board has a file, so saving again goes straight
+        # back to it instead of asking for a name a second time
+        self.editing_path = saved
+        self.editing_name = name
+        self._show_status(f"Saved {saved.name}")
+        return saved
+
+    def request_save(self) -> None:
+        # Already tied to a file: straight back to it. Otherwise ask what to
+        # call it first.
+        if self.editing_path is not None:
+            self.save_level(self.editing_name, self.editing_path)
+            return
+        self.dialog = SaveDialog(self.screen)
+
+    def request_load(self) -> None:
+        saved = load_all_saved(self.directory)
+        if not saved:
+            self._show_status(EDITOR_NO_LEVELS_MESSAGE)
+            return
+        self.picker = LoadDialog(self.screen, saved)
 
     def _adopt_screen(self, screen: pygame.Surface) -> None:
         # Resizing the window hands back a brand new surface, and everything
@@ -208,6 +287,8 @@ class LevelEditorScene(Scene):
             self.input_box.screen = screen
         if self.dialog is not None:
             self.dialog.screen = screen
+        if self.picker is not None:
+            self.picker.screen = screen
 
     def _show_status(self, message: str) -> None:
         self.status = message
@@ -232,6 +313,15 @@ class LevelEditorScene(Scene):
                     self.save_level(result.name)
             return
 
+        # So is the load list, for the same reason
+        if self.picker is not None:
+            picked = self.picker.handle_event(event)
+            if picked is not None:
+                self.picker = None
+                if picked.chosen is not None:
+                    self.load_level(picked.chosen)
+            return
+
         # An open degree box swallows everything else, so the click that
         # dismisses it cannot also grab the piece underneath
         if self.input_box is not None:
@@ -247,6 +337,7 @@ class LevelEditorScene(Scene):
 
         if event.type == pygame.MOUSEMOTION:
             self.save_button.hovered = self.save_button.contains(event.pos)
+            self.load_button.hovered = self.load_button.contains(event.pos)
             return
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -259,7 +350,11 @@ class LevelEditorScene(Scene):
         self.click_target = None
 
         if self.save_button.contains(pos):
-            self.dialog = SaveDialog(self.screen)
+            self.request_save()
+            return
+
+        if self.load_button.contains(pos):
+            self.request_load()
             return
 
         # A press on the table starts a brand new piece of that kind
@@ -312,7 +407,7 @@ class LevelEditorScene(Scene):
             if self.status_timer == 0:
                 self.status = ""
 
-        if self.dialog is not None or self.input_box is not None:
+        if self.dialog is not None or self.picker is not None or self.input_box is not None:
             return
 
         if self.held is not None:
@@ -335,6 +430,7 @@ class LevelEditorScene(Scene):
 
         self.table.draw()
         self.save_button.draw(self.screen)
+        self.load_button.draw(self.screen)
         self._draw_footer()
 
         # Last, so the piece being dragged stays on top of the board and the table
@@ -345,6 +441,8 @@ class LevelEditorScene(Scene):
             self.input_box.draw()
         if self.dialog is not None:
             self.dialog.draw()
+        if self.picker is not None:
+            self.picker.draw()
 
     # -- drawing helpers ---------------------------------------------------
 
@@ -362,17 +460,24 @@ class LevelEditorScene(Scene):
                 pygame.draw.rect(self.screen, BOARD_GRID_COLOR, cell, 1)
 
     def _draw_footer(self) -> None:
-        # One line under the save button: whatever just happened, or, once
-        # that has faded, how to work the editor
+        # One line under the buttons: whatever just happened, or, once that
+        # has faded, which file is being edited -- or how to work the editor
         font = self.status_font if self.status else self.hint_font
         color = EDITOR_STATUS_COLOR if self.status else LEVEL_HINT_COLOR
         text, rect = render_text(
             font,
-            self.status or EDITOR_HINT,
+            self.status or self.hint(),
             color,
             (self.board_rect.centerx, self.save_button.rect.bottom + EDITOR_BOARD_GAP),
         )
         self.screen.blit(text, rect)
+
+    def hint(self) -> str:
+        if self.editing_path is None:
+            return EDITOR_HINT
+        return EDITOR_EDITING_HINT.format(
+            name=self.editing_name, file=self.editing_path.name
+        )
 
 
 def _cell_of(piece: Piece) -> Cell:
