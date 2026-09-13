@@ -70,7 +70,22 @@ class Target:
         self.screen.set_clip(previous_clip)
 
     def _draw_in(self, color: tuple[int, int, int]) -> None:
-        pygame.draw.rect(self.screen, color, self.rect, TARGET_BORDER_WIDTH)
-        # An inner block so the target still reads as solid from a distance
-        inner = self.rect.inflate(-self.size // 2, -self.size // 2)
-        pygame.draw.rect(self.screen, color, inner)
+        for band in self._ring_bands() + [self._inner_block()]:
+            pygame.draw.rect(self.screen, color, band)
+
+    def _ring_bands(self) -> list[pygame.Rect]:
+        # The outer ring, as four filled bars rather than one rect asked for a
+        # border width. Drawn the latter way, pygame fills the rect solid once
+        # the clip above has narrowed it to about twice that width -- which
+        # painted the space inside the ring as the charge rose past it.
+        edge = TARGET_BORDER_WIDTH
+        return [
+            pygame.Rect(self.rect.left, self.rect.top, self.rect.width, edge),
+            pygame.Rect(self.rect.left, self.rect.bottom - edge, self.rect.width, edge),
+            pygame.Rect(self.rect.left, self.rect.top, edge, self.rect.height),
+            pygame.Rect(self.rect.right - edge, self.rect.top, edge, self.rect.height),
+        ]
+
+    def _inner_block(self) -> pygame.Rect:
+        # So the target still reads as solid from a distance
+        return self.rect.inflate(-self.size // 2, -self.size // 2)

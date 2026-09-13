@@ -4,7 +4,12 @@ and the charge a beam has to hold on it before that win is given.
 import pygame
 import pytest
 
-from constants import TARGET_CHARGE_COLOR, TARGET_CHARGE_SECONDS, TARGET_COLOR
+from constants import (
+    TARGET_BORDER_WIDTH,
+    TARGET_CHARGE_COLOR,
+    TARGET_CHARGE_SECONDS,
+    TARGET_COLOR,
+)
 from target import Target
 
 pytestmark = pytest.mark.unit
@@ -199,6 +204,59 @@ class TestDrawing:
         target.draw()
 
         assert screen.get_at((target.rect.centerx, target.rect.bottom - 2))[:3] == TARGET_COLOR
+
+    def test_the_fill_only_ever_colours_the_target_itself(
+        self, target: Target, screen: pygame.Surface
+    ) -> None:
+        """The space inside the ring stays empty the whole way up.
+
+        Asking pygame for a rect with a border width gets a solid rect once a
+        clip narrows it to about twice that width, which used to paint the gap
+        between the ring and the inner block red as the charge passed it.
+        """
+        screen.fill("black")
+        target.draw()
+        empty = {
+            (x, y)
+            for x in range(target.rect.left, target.rect.right)
+            for y in range(target.rect.top, target.rect.bottom)
+            if screen.get_at((x, y))[:3] != TARGET_COLOR
+        }
+        assert empty, "the target should have gaps inside its ring to begin with"
+
+        for step in range(target.rect.height + 1):
+            target.charge = step / target.rect.height
+            screen.fill("black")
+            target.draw()
+
+            coloured = {
+                point for point in empty if screen.get_at(point)[:3] == TARGET_CHARGE_COLOR
+            }
+            assert not coloured, f"filled the gap at charge {target.charge:.2f}: {sorted(coloured)[:4]}"
+
+    def test_the_ring_keeps_its_thickness_as_the_fill_passes_it(
+        self, target: Target, screen: pygame.Surface
+    ) -> None:
+        # While the fill has cleared the ring but not yet reached the inner
+        # block, the coloured run down the middle is the ring's bottom bar and
+        # nothing else -- that stretch is where the bug showed
+        inner = target.rect.inflate(-target.size // 2, -target.size // 2)
+        clear_of_the_inner_block = target.rect.bottom - inner.bottom
+        heights = range(TARGET_BORDER_WIDTH, clear_of_the_inner_block + 1)
+        assert len(heights) > TARGET_BORDER_WIDTH, "no gap to test against"
+
+        column = target.rect.centerx
+        for height in heights:
+            target.charge = height / target.rect.height
+            screen.fill("black")
+            target.draw()
+
+            filled = sum(
+                1
+                for y in range(target.rect.top, target.rect.bottom)
+                if screen.get_at((column, y))[:3] == TARGET_CHARGE_COLOR
+            )
+            assert filled == TARGET_BORDER_WIDTH, f"at a fill of {height}px"
 
     def test_drawing_does_not_leave_the_screen_clipped(
         self, target: Target, screen: pygame.Surface

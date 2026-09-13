@@ -4,6 +4,7 @@ from typing import ClassVar
 import pygame
 
 from constants import *
+from controls import turn_with_keys
 
 
 class Wall(pygame.sprite.Sprite):
@@ -84,8 +85,4 @@ class Wall(pygame.sprite.Sprite):
         assert self.rect is not None  # draw() runs every frame before this is called
         mouse_x, mouse_y = pygame.mouse.get_pos()
         if self.rect.collidepoint(mouse_x, mouse_y):
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_a]:
-                self.rotate(dt)
-            if keys[pygame.K_d]:
-                self.rotate(-dt)
+            turn_with_keys(self, dt)

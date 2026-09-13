@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, ClassVar
 import pygame
 
 from constants import ROTATION_SPEED
+from controls import turn_with_keys
 
 if TYPE_CHECKING:
     from laserbeam import LaserBeam
@@ -127,11 +128,7 @@ class Laser(pygame.sprite.Sprite):
         assert self.rect is not None  # _compute_corners() runs every frame before this is called
         mouse_x, mouse_y = pygame.mouse.get_pos()
         if self.rect.collidepoint(mouse_x, mouse_y):
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_a]:
-                self.rotate(dt)
-            if keys[pygame.K_d]:
-                self.rotate(-dt)
+            turn_with_keys(self, dt)
 
     def get_laser_point(self) -> pygame.Vector2:
         assert self.top_right is not None

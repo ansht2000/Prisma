@@ -4,6 +4,7 @@ from typing import ClassVar
 import pygame
 
 from constants import MIRROR_WIDTH, ROTATION_SPEED
+from controls import turn_with_keys
 
 
 class Mirror(pygame.sprite.Sprite):
@@ -80,8 +81,4 @@ class Mirror(pygame.sprite.Sprite):
         assert self.rect is not None  # draw() runs every frame before this is called
         mouse_x, mouse_y = pygame.mouse.get_pos()
         if self.rect.collidepoint(mouse_x, mouse_y):
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_a]:
-                self.rotate(dt)
-            if keys[pygame.K_d]:
-                self.rotate(-dt)
+            turn_with_keys(self, dt)

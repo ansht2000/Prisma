@@ -10,6 +10,8 @@ SCREEN_WIDTH: int = 1280
 SCREEN_HEIGHT: int = 720
 MIRROR_DEFAULT_SIZE: int = 100
 ROTATION_SPEED: int = 90
+# Holding shift turns a piece at 30% less than full speed, for fine aiming
+SLOW_ROTATION_FACTOR: float = 0.7
 
 # How big a piece is drawn, everywhere it appears: on a level board, in the
 # editor, in the sandbox, and as the sample in the objects table
@@ -83,7 +85,7 @@ TARGET_COLOR: tuple[int, int, int] = (60, 200, 90)
 # A target has to be held in the beam rather than merely touched by it: it
 # fills with this colour from the bottom up, and the level is won once full
 TARGET_CHARGE_COLOR: tuple[int, int, int] = (220, 60, 60)
-TARGET_CHARGE_SECONDS: float = 5.0
+TARGET_CHARGE_SECONDS: float = 3.0
 
 # Overlay panel (used by the win screen)
 OVERLAY_TITLE_FONT_SIZE: int = 56
