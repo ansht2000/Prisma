@@ -99,6 +99,9 @@ class LevelScene(Scene):
         self.hint_font: pygame.font.Font = pygame.font.SysFont("Arial", LEVEL_HINT_FONT_SIZE)
         # What the line under the board currently says, refreshed each frame
         self.footer_text: str = layout.hint
+        # Kept from update() so draw() can charge the target, which it can
+        # only do once it knows where this frame's beam went
+        self._dt: float = 0
         self.input_box: InputBox | None = None
         self.won: bool = False
         self.win_overlay: ChoiceOverlay | None = None
@@ -161,6 +164,7 @@ class LevelScene(Scene):
                     return
 
     def update(self, dt: float) -> None:
+        self._dt = dt
         if self.won or self.input_box is not None:
             return
         # Guarded rather than asserted: a mirror has no rect until its first
@@ -175,7 +179,7 @@ class LevelScene(Scene):
 
         # Drawing a piece is also what recomputes its geometry, so everything
         # the beam traces against has to be drawn before the beam is traced
-        self.target.draw(hit=self.won)
+        self.target.draw()
         self.laser.draw()
         for mirror in self.mirrors:
             mirror.draw()
@@ -198,9 +202,13 @@ class LevelScene(Scene):
 
         self._note_interaction()
         on_target = self.target.is_hit_by(self.beam.beam_path)
-        if not self.won and self.touched and on_target:
-            self.won = True
-            self.win_overlay = self._build_win_overlay()
+        if not self.won:
+            # Holding the beam on the target fills it; a full target is the
+            # win. Once won the charge is left alone, so it stays full.
+            self.target.advance(self._dt, on_target and self.touched)
+            if self.target.is_charged:
+                self.won = True
+                self.win_overlay = self._build_win_overlay()
 
         self.footer_text = (
             LEVEL_UNTOUCHED_HINT if on_target and not self.touched else self.layout.hint

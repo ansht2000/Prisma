@@ -9,7 +9,7 @@ import pytest
 import levels
 from level import LevelScene
 from level_select import LevelSelectScene
-from constants import LEVEL_UNTOUCHED_HINT
+from constants import LEVEL_UNTOUCHED_HINT, TARGET_CHARGE_SECONDS
 from levels import LEVEL_ONE, LevelLayout, MirrorSpec, WallSpec
 from mirror import Mirror
 
@@ -29,8 +29,8 @@ def only_mirror(scene: LevelScene) -> Mirror:
     return mirror
 
 
-def run_frame(scene: LevelScene) -> None:
-    scene.update(0.016)
+def run_frame(scene: LevelScene, dt: float = 0.016) -> None:
+    scene.update(dt)
     scene.draw()
 
 
@@ -206,6 +206,116 @@ class TestCannotBeWonInstantly:
         scene = LevelScene(screen, no_mirrors)
 
         assert scene.touched is True
+
+
+class TestHoldingTheBeamOnTheTarget:
+    """Crossing the target is not enough: the beam has to stay on it while the
+    target fills, and only a full target wins.
+
+    The one place the charge time matters, so it is the one place that puts
+    the real duration back (see tests/conftest.py).
+    """
+
+    @pytest.fixture(autouse=True)
+    def use_the_real_charge_time(self, real_target_charge: float) -> None:
+        pass
+
+    def solve(self, level: LevelScene) -> None:
+        run_frame(level)
+        only_mirror(level).set_orientation(SOLVING_ANGLE)
+
+    def test_landing_the_beam_does_not_win_on_its_own(self, level: LevelScene) -> None:
+        self.solve(level)
+
+        run_frame(level)
+
+        assert level.beam is not None
+        assert level.target.is_hit_by(level.beam.beam_path) is True
+        assert level.won is False
+
+    def test_the_target_starts_filling(self, level: LevelScene) -> None:
+        self.solve(level)
+
+        run_frame(level, TARGET_CHARGE_SECONDS / 2)
+
+        assert level.target.charge == pytest.approx(0.5)
+        assert level.won is False
+
+    def test_it_is_still_not_won_just_short_of_the_time(self, level: LevelScene) -> None:
+        self.solve(level)
+
+        run_frame(level, TARGET_CHARGE_SECONDS - 0.1)
+
+        assert level.won is False
+
+    def test_it_is_won_once_the_target_is_full(self, level: LevelScene) -> None:
+        self.solve(level)
+
+        run_frame(level, TARGET_CHARGE_SECONDS)
+
+        assert level.target.is_charged is True
+        assert level.won is True
+
+    def test_taking_the_beam_away_starts_it_draining(self, level: LevelScene) -> None:
+        self.solve(level)
+        run_frame(level, TARGET_CHARGE_SECONDS / 2)
+
+        only_mirror(level).set_orientation(90)  # beam swings off the target
+        run_frame(level, TARGET_CHARGE_SECONDS / 4)
+
+        assert level.target.charge == pytest.approx(0.25)
+        assert level.won is False
+
+    def test_it_drains_all_the_way_if_the_beam_stays_away(
+        self, level: LevelScene
+    ) -> None:
+        self.solve(level)
+        run_frame(level, TARGET_CHARGE_SECONDS / 2)
+
+        only_mirror(level).set_orientation(90)
+        run_frame(level, TARGET_CHARGE_SECONDS)
+
+        assert level.target.charge == 0
+
+    def test_bringing_the_beam_back_makes_up_only_what_was_lost(
+        self, level: LevelScene
+    ) -> None:
+        self.solve(level)
+        run_frame(level, TARGET_CHARGE_SECONDS * 0.75)
+        only_mirror(level).set_orientation(90)
+        run_frame(level, TARGET_CHARGE_SECONDS / 4)
+
+        only_mirror(level).set_orientation(SOLVING_ANGLE)
+        run_frame(level, TARGET_CHARGE_SECONDS / 2)
+
+        assert level.won is True
+
+    def test_an_unsolved_level_never_starts_filling(self, level: LevelScene) -> None:
+        run_frame(level, TARGET_CHARGE_SECONDS * 3)
+
+        assert level.target.charge == 0
+
+    def test_the_target_stays_full_once_the_level_is_won(self, level: LevelScene) -> None:
+        self.solve(level)
+        run_frame(level, TARGET_CHARGE_SECONDS)
+        assert level.won is True
+
+        only_mirror(level).set_orientation(90)  # beam swings off it again
+        run_frame(level, TARGET_CHARGE_SECONDS)
+
+        assert level.target.is_charged is True
+
+    def test_a_pre_solved_level_does_not_fill_until_it_is_played(
+        self, screen: pygame.Surface
+    ) -> None:
+        # The beam is on the target from the first frame, but nothing has been
+        # moved, so there is nothing to charge yet (see TestCannotBeWonInstantly)
+        scene = LevelScene(screen, TestCannotBeWonInstantly().pre_solved())
+
+        run_frame(scene, TARGET_CHARGE_SECONDS * 2)
+
+        assert scene.target.charge == 0
+        assert scene.won is False
 
 
 class TestWinOverlay:

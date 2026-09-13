@@ -78,8 +78,12 @@ LEVEL_HINT_FONT_SIZE: int = 20
 LEVEL_UNTOUCHED_HINT: str = "Move a mirror to finish the level."
 LEVEL_HINT_COLOR: tuple[int, int, int] = (150, 150, 150)
 TARGET_SIZE: int = 46
+TARGET_BORDER_WIDTH: int = 4
 TARGET_COLOR: tuple[int, int, int] = (60, 200, 90)
-TARGET_HIT_COLOR: tuple[int, int, int] = (255, 220, 80)
+# A target has to be held in the beam rather than merely touched by it: it
+# fills with this colour from the bottom up, and the level is won once full
+TARGET_CHARGE_COLOR: tuple[int, int, int] = (220, 60, 60)
+TARGET_CHARGE_SECONDS: float = 5.0
 
 # Overlay panel (used by the win screen)
 OVERLAY_TITLE_FONT_SIZE: int = 56
